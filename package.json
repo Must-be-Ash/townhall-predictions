@@ -6,22 +6,41 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@coinbase/cdp-core": "^0.0.23",
+    "@coinbase/cdp-hooks": "^0.0.23",
+    "@coinbase/cdp-react": "^0.0.23",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "bcryptjs": "^3.0.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.540.0",
+    "mongoose": "^8.17.2",
+    "next": "15.5.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "next": "15.5.0"
+    "viem": "^2.34.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/mongoose": "^5.11.96",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.0",
-    "@eslint/eslintrc": "^3"
+    "prettier": "^3.6.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
