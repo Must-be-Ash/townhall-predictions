@@ -26,7 +26,7 @@ export default function ClientApp() {
         <div className="max-w-md mx-auto bg-[#2a2a2a] rounded-2xl border border-[#3a3a3a] p-8">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-[#ffffff] mb-4 font-[var(--font-climate-crisis)]">
-              TownHall Predictions
+              Townhall Predictions
             </h1>
             <p className="text-[#808080] mb-8">
               Sign in to participate in prediction markets with dynamic AMM-lite odds

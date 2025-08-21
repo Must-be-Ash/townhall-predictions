@@ -8,7 +8,7 @@ const CDP_CONFIG: Config = {
 };
 
 const APP_CONFIG: AppConfig = {
-  name: "TownHall Predictions",
+  name: "Townhall Predictions",
   logoUrl: "http://localhost:3000/logo.svg", // Use full URL as shown in docs
 };
 

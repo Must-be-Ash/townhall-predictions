@@ -14,7 +14,7 @@ const climateCrisis = Climate_Crisis({
 });
 
 export const metadata: Metadata = {
-  title: "TownHall Predictions",
+  title: "Townhall Predictions",
   description: "Binary prediction markets for town hall events",
 };
 
