@@ -14,7 +14,7 @@ export default function ClientApp() {
       <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-[#808080]">Initializing CDP...</p>
+          <p className="text-[#808080]">Loading...</p>
         </div>
       </div>
     );
@@ -45,11 +45,7 @@ export default function ClientApp() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto pt-24 md:pt-20 pb-24 md:pb-8 px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-[#ffffff] mb-2 font-[var(--font-climate-crisis)]">Markets</h2>
-          <p className="text-[#808080]">
-            Discover prediction markets with real-time odds and dynamic multipliers
-          </p>
+        <div className="mb-12">
         </div>
         
         <MarketGrid />

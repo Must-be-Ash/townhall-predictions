@@ -1,16 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useContract } from "@/hooks/useContract";
 
 export function MarketCreationForm() {
-  const { createMarket } = useContract();
+  const { createMarket, getMarketCounter } = useContract();
+  const router = useRouter();
   
   const [question, setQuestion] = useState("");
   const [closeDate, setCloseDate] = useState("");
   const [closeTime, setCloseTime] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const [lastCreatedMarket, setLastCreatedMarket] = useState<string | null>(null);
+  const [lastCreatedMarket, setLastCreatedMarket] = useState<{
+    question: string;
+    transactionHash?: string;
+    marketId?: number;
+  } | null>(null);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,12 +37,23 @@ export function MarketCreationForm() {
       
       const result = await createMarket(question, closeTimestamp);
       
+      // Get the current market counter to determine the ID of the market we just created
+      const marketCounter = await getMarketCounter();
+      const marketId = Number(marketCounter);
+      
       // Reset form
       setQuestion("");
       setCloseDate("");
       setCloseTime("");
       
-      setLastCreatedMarket(question);
+      // Extract transaction hash from result
+      const transactionHash = result?.transactionHash;
+      
+      setLastCreatedMarket({
+        question,
+        transactionHash,
+        marketId,
+      });
       console.log("Market created successfully:", result);
     } catch (error) {
       console.error("Failed to create market:", error);
@@ -54,14 +71,39 @@ export function MarketCreationForm() {
       <h2 className="text-xl text-[#ffffff] font-bold mb-4 font-[var(--font-climate-crisis)]">Create New Market</h2>
       
       {lastCreatedMarket && (
-        <div className="mb-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-          <div className="flex">
-            <svg className="w-5 h-5 text-green-400 mt-0.5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            <div>
-              <p className="text-sm font-medium text-green-400">Market created successfully!</p>
-              <p className="text-sm text-green-300 mt-1">&ldquo;{lastCreatedMarket}&rdquo;</p>
+        <div className="mb-6 p-6 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg">
+          <div className="flex items-start">
+            <div className="flex-shrink-0 w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center mr-4">
+              <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-green-400 mb-2">Market Created Successfully!</h3>
+              <p className="text-[#c0c0c0] mb-4 font-medium">&ldquo;{lastCreatedMarket.question}&rdquo;</p>
+              
+              {lastCreatedMarket.transactionHash && (
+                <div className="mb-4 p-3 bg-[#1a1a1a] border border-[#3a3a3a] rounded">
+                  <p className="text-sm text-[#808080] mb-2">Transaction Hash:</p>
+                  <a
+                    href={`https://sepolia.basescan.org/tx/${lastCreatedMarket.transactionHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-400 hover:text-blue-300 break-all font-mono"
+                  >
+                    {lastCreatedMarket.transactionHash}
+                  </a>
+                </div>
+              )}
+              
+              {lastCreatedMarket.marketId && (
+                <button
+                  onClick={() => router.push(`/market/${lastCreatedMarket.marketId}`)}
+                  className="px-4 py-2 bg-[#3a3a3a] hover:bg-[#4a4a4a] text-[#ffffff] font-medium rounded-lg transition-colors border border-[#4a4a4a]"
+                >
+                  View Market →
+                </button>
+              )}
             </div>
           </div>
         </div>

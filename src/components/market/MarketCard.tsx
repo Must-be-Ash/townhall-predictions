@@ -157,9 +157,9 @@ export function MarketCard({ marketId, hideDetailsLink = false }: MarketCardProp
       </div>
 
       {/* Question */}
-      <h3 className="text-[#ffffff] text-lg font-semibold mb-4 leading-tight font-[var(--font-climate-crisis)]">
+      <div className="text-[#ffffff] text-lg font-bold mb-4 leading-tight font-sans h-14 overflow-hidden line-clamp-2">
         {market.question}
-      </h3>
+      </div>
 
       {/* Odds Bar */}
       <div className="mb-4">
