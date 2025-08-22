@@ -19,6 +19,7 @@ export function useContract() {
   const marketContract = CONTRACT_ADDRESSES.TOWN_HALL_PREDICTIONS[84532] as `0x${string}`;
   const usdcContract = CONTRACT_ADDRESSES.USDC[84532] as `0x${string}`;
   
+  
   // Helper function to handle nonce retry logic
   const sendTransactionWithRetry = useCallback(async (transactionParams: {
     transaction: {

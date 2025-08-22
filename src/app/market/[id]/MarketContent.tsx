@@ -5,7 +5,7 @@ import { AuthButton } from "@coinbase/cdp-react/components/AuthButton";
 import { MarketCard } from "@/components/market/MarketCard";
 import { RecentActivity } from "@/components/board/RecentActivity";
 import { MarketSettlement } from "@/components/market/MarketSettlement";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { DockNavigation } from "@/components/navigation/DockNavigation";
 import { useContract } from "@/hooks/useContract";
 import { useMarkets } from "@/contexts/MarketContext";
@@ -13,7 +13,9 @@ import { useState, useEffect } from "react";
 
 export default function MarketContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const marketId = parseInt(params.id as string);
+  const isNewMarket = searchParams.get('new') === 'true';
   const { isInitialized } = useIsInitialized();
   const { isSignedIn } = useIsSignedIn();
   const { evmAddress } = useEvmAddress();
@@ -98,7 +100,7 @@ export default function MarketContent() {
         <div className="space-y-8">
           
           {/* Market Card - Contains everything needed for betting */}
-          <MarketCard marketId={marketId} hideDetailsLink={true} />
+          <MarketCard marketId={marketId} hideDetailsLink={true} isNewMarket={isNewMarket} />
           
           {/* Settlement Controls - Only visible to contract owner */}
           {isOwner && marketData && !ownerLoading && (

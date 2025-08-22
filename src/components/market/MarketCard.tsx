@@ -6,6 +6,7 @@ import { useEvmAddress } from "@coinbase/cdp-hooks";
 import { formatUSDC } from "@/lib/constants";
 import { useMarkets } from "@/contexts/MarketContext";
 import Link from "next/link";
+import { GlassButton } from "@/components/ui/GlassButton";
 
 // Component for smooth number transitions
 function AnimatedNumber({ value, format = (n) => n.toString() }: { value: number; format?: (n: number) => string }) {
@@ -33,11 +34,11 @@ function AnimatedNumber({ value, format = (n) => n.toString() }: { value: number
 interface MarketCardProps {
   marketId: number;
   hideDetailsLink?: boolean;
+  isNewMarket?: boolean;
 }
 
-function MarketCardComponent({ marketId, hideDetailsLink = false }: MarketCardProps) {
+function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = false }: MarketCardProps) {
   const [isPlacingBet, setIsPlacingBet] = useState(false);
-  const [selectedOutcome, setSelectedOutcome] = useState<boolean | null>(null);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [userWinnings, setUserWinnings] = useState<bigint>(0n);
   const [userBet, setUserBet] = useState<{
@@ -62,15 +63,39 @@ function MarketCardComponent({ marketId, hideDetailsLink = false }: MarketCardPr
   const error = getError(marketId);
   const isUpdating = isLoading(marketId);
   
+  // Enhanced user feedback states
+  const [betFeedback, setBetFeedback] = useState<{
+    type: 'success' | 'processing' | 'confirming' | null;
+    outcome?: boolean;
+    message?: string;
+  }>({ type: null });
+  
   // Store refresh function in ref to avoid useEffect dependency issues
   const refreshMarketRef = useRef(refreshMarket);
   refreshMarketRef.current = refreshMarket;
 
-  // Load market data using centralized state (only initial load, polling handled centrally)
+  // Load market data and set up smart polling
   useEffect(() => {
-    // Initial load only - polling will be handled by centralized service
-    refreshMarketRef.current(marketId);
-  }, [marketId]);
+    // For new markets, force refresh to bypass cache, otherwise use normal refresh
+    if (isNewMarket) {
+      console.log(`Loading new market ${marketId} with force refresh`);
+      forceRefreshMarket(marketId);
+    } else {
+      // Initial load only - polling will be handled by centralized service
+      refreshMarketRef.current(marketId);
+    }
+    
+    // Import the polling service to set market focus
+    import('@/services/MarketPollingService').then(({ marketPollingService }) => {
+      // Set this market as focused when component mounts
+      marketPollingService.setMarketFocus(marketId, true);
+      
+      // Clean up focus when component unmounts
+      return () => {
+        marketPollingService.setMarketFocus(marketId, false);
+      };
+    });
+  }, [marketId, isNewMarket, forceRefreshMarket]);
 
   // Check user winnings when market is resolved and user has wallet connected
   useEffect(() => {
@@ -125,7 +150,7 @@ function MarketCardComponent({ marketId, hideDetailsLink = false }: MarketCardPr
     if (!evmAddress || !market || isPlacingBet) return;
     
     setIsPlacingBet(true);
-    setSelectedOutcome(outcome);
+    setBetFeedback({ type: 'processing', outcome, message: 'Preparing transaction...' });
     
     // Optimistic update - immediately show the effect of the bet
     const optimisticUpdates = {
@@ -137,57 +162,87 @@ function MarketCardComponent({ marketId, hideDetailsLink = false }: MarketCardPr
     
     optimisticUpdate(marketId, optimisticUpdates);
     
+    // Import polling service for priority refresh
+    const { marketPollingService } = await import('@/services/MarketPollingService');
+    
     try {
       // Check USDC allowance
+      setBetFeedback({ type: 'processing', outcome, message: 'Checking USDC allowance...' });
       const allowance = await checkUSDCAllowance(evmAddress);
       
       if (allowance < BET_AMOUNT) {
+        setBetFeedback({ type: 'processing', outcome, message: 'Approving USDC spend...' });
         await approveUSDC(BET_AMOUNT);
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
       
       // Place the bet
+      setBetFeedback({ type: 'processing', outcome, message: 'Placing bet...' });
       await placeBet(marketId, outcome);
       
-      // Wait for blockchain state to propagate with retry logic
+      // Show success immediately with optimistic data
+      setBetFeedback({ type: 'success', outcome, message: `Bet placed successfully!` });
+      
+      // Force high-priority refresh to get confirmation quickly
+      marketPollingService.forceRefresh(marketId, 1); // CRITICAL priority
+      
+      // Wait for blockchain confirmation with enhanced feedback
+      setBetFeedback({ type: 'confirming', outcome, message: 'Confirming on blockchain...' });
+      
       const originalYesCount = market.yesCount;
       const originalNoCount = market.noCount;
       
       let attempts = 0;
-      const maxAttempts = 10;
+      const maxAttempts = 8; // Reduced since we have smart polling now
       while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await forceRefreshMarket(marketId);
+        await new Promise(resolve => setTimeout(resolve, 1500));
         
         // Get fresh market data to check if bet was recorded
         const updatedMarket = getMarket(marketId);
         if (updatedMarket && 
             (updatedMarket.yesCount > originalYesCount || updatedMarket.noCount > originalNoCount)) {
+          setBetFeedback({ type: 'success', outcome, message: 'Bet confirmed!' });
+          // Clear feedback after showing success
+          setTimeout(() => setBetFeedback({ type: null }), 3000);
           break; // Bet was recorded, we're done
         }
         attempts++;
+        
+        // Trigger another priority refresh on each attempt
+        marketPollingService.forceRefresh(marketId, 1);
+      }
+      
+      if (attempts >= maxAttempts) {
+        setBetFeedback({ type: 'success', outcome, message: 'Bet placed (confirmation pending)' });
+        setTimeout(() => setBetFeedback({ type: null }), 5000);
       }
       
     } catch (error) {
       console.error("Failed to place bet:", error);
       // Revert optimistic update on error by refreshing
       await forceRefreshMarket(marketId);
+      setBetFeedback({ type: null });
       alert("Failed to place bet. Please try again.");
     } finally {
       setIsPlacingBet(false);
-      setSelectedOutcome(null);
     }
   };
 
   if (!market) {
     return (
-      <div className="bg-[#2a2a2a] rounded-2xl p-6 animate-pulse border border-[#3a3a3a]">
-        <div className="h-4 bg-[#3a3a3a] rounded mb-4"></div>
-        <div className="h-14 bg-[#3a3a3a] rounded mb-4"></div>
-        <div className="h-2 bg-[#3a3a3a] rounded mb-4"></div>
-        <div className="flex space-x-4">
-          <div className="flex-1 h-12 bg-[#3a3a3a] rounded"></div>
-          <div className="flex-1 h-12 bg-[#3a3a3a] rounded"></div>
+      <div className="bg-[#2a2a2a] rounded-2xl p-6 border border-[#3a3a3a]">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-[#c0c0c0] font-medium">
+              {isNewMarket ? 'Loading new market...' : 'Loading market data...'}
+            </p>
+            {isNewMarket && (
+              <p className="text-[#808080] text-sm mt-2">
+                Fetching fresh data from blockchain
+              </p>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -206,6 +261,19 @@ function MarketCardComponent({ marketId, hideDetailsLink = false }: MarketCardPr
 
   const totalPool = BigInt(market.yesTotal) + BigInt(market.noTotal);
   const totalBets = market.yesCount + market.noCount;
+  
+  // Debug: Log market data to diagnose the $0.50 issue
+  console.log(`📊 Market ${marketId} Data:`, {
+    yesTotal: market.yesTotal,
+    noTotal: market.noTotal,
+    totalPool: totalPool.toString(),
+    yesCount: market.yesCount,
+    noCount: market.noCount,
+    totalBets,
+    formattedPool: formatUSDC(totalPool),
+    resolved: market.resolved,
+    voided: market.voided
+  });
   const closeTime = new Date(market.closeTime);
   const isActive = !market.resolved && !market.voided && Date.now() < closeTime.getTime();
   
@@ -229,8 +297,34 @@ function MarketCardComponent({ marketId, hideDetailsLink = false }: MarketCardPr
 
   return (
     <div className={`bg-[#2a2a2a] rounded-2xl p-6 border border-[#3a3a3a] hover:border-[#808080] transition-all duration-200 relative ${isUpdating ? 'ring-2 ring-blue-500/20' : ''}`}>
+      {/* Enhanced feedback indicator */}
+      {betFeedback.type && (
+        <div className="absolute top-2 right-2 flex items-center space-x-2">
+          {betFeedback.type === 'processing' && (
+            <div className="flex items-center">
+              <svg className="animate-spin h-4 w-4 text-blue-400 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          )}
+          {betFeedback.type === 'success' && (
+            <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+          )}
+          {betFeedback.type === 'confirming' && (
+            <div className="flex items-center">
+              <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* Update indicator */}
-      {isUpdating && (
+      {isUpdating && !betFeedback.type && (
         <div className="absolute top-2 right-2 w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
       )}
       
@@ -281,45 +375,78 @@ function MarketCardComponent({ marketId, hideDetailsLink = false }: MarketCardPr
 
       {/* Betting Buttons */}
       {isActive ? (
-        <div className="flex space-x-3">
-          <button
-            onClick={() => handleBet(true)}
-            disabled={isPlacingBet}
-            className={`flex-1 py-3 px-4 rounded-xl font-medium text-[#ffffff] transition-all duration-200 ${
-              isPlacingBet && selectedOutcome === true
-                ? 'bg-green-600 opacity-75'
-                : 'bg-green-600 hover:bg-green-500 hover:scale-105'
-            } disabled:cursor-not-allowed`}
-          >
-            <div className="flex items-center justify-center">
-              <span className="mr-2">YES</span>
-              {yesMultiplier !== 100 && (
-                <span className="text-xs bg-green-600 px-2 py-1 rounded-full">
-                  {(yesMultiplier / 100).toFixed(2)}x
-                </span>
-              )}
-            </div>
-          </button>
+        <>
+          <div className="flex space-x-3">
+            <GlassButton
+              variant="green"
+              size="md"
+              onClick={() => handleBet(true)}
+              disabled={isPlacingBet}
+              className={`flex-1 ${betFeedback.type === 'success' && betFeedback.outcome === true ? 'ring-2 ring-green-400/50' : ''}`}
+            >
+              <div className="flex items-center justify-center">
+                <span className="mr-2">YES</span>
+                {yesMultiplier !== 100 && (
+                  <span className="text-xs bg-black/20 px-2 py-1 rounded-full">
+                    {(yesMultiplier / 100).toFixed(2)}x
+                  </span>
+                )}
+              </div>
+            </GlassButton>
+            
+            <GlassButton
+              variant="red"
+              size="md"
+              onClick={() => handleBet(false)}
+              disabled={isPlacingBet}
+              className={`flex-1 ${betFeedback.type === 'success' && betFeedback.outcome === false ? 'ring-2 ring-green-400/50' : ''}`}
+            >
+              <div className="flex items-center justify-center">
+                <span className="mr-2">NO</span>
+                {noMultiplier !== 100 && (
+                  <span className="text-xs bg-black/20 px-2 py-1 rounded-full">
+                    {(noMultiplier / 100).toFixed(2)}x
+                  </span>
+                )}
+              </div>
+            </GlassButton>
+          </div>
           
-          <button
-            onClick={() => handleBet(false)}
-            disabled={isPlacingBet}
-            className={`flex-1 py-3 px-4 rounded-xl font-medium text-[#ffffff] transition-all duration-200 ${
-              isPlacingBet && selectedOutcome === false
-                ? 'bg-red-600 opacity-75'
-                : 'bg-red-600 hover:bg-red-500 hover:scale-105'
-            } disabled:cursor-not-allowed`}
-          >
-            <div className="flex items-center justify-center">
-              <span className="mr-2">NO</span>
-              {noMultiplier !== 100 && (
-                <span className="text-xs bg-red-600 px-2 py-1 rounded-full">
-                  {(noMultiplier / 100).toFixed(2)}x
-                </span>
-              )}
+          {/* Bet feedback message */}
+          {betFeedback.type && betFeedback.message && (
+            <div className={`mt-3 p-3 rounded-lg text-sm font-medium transition-all duration-300 ${
+              betFeedback.type === 'processing' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+              betFeedback.type === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+              betFeedback.type === 'confirming' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
+              'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+            }`}>
+              <div className="flex items-center">
+                {betFeedback.type === 'processing' && (
+                  <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+                {betFeedback.type === 'success' && (
+                  <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+                {betFeedback.type === 'confirming' && (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
+                )}
+                <span>{betFeedback.message}</span>
+                {betFeedback.outcome !== undefined && (
+                  <span className={`ml-2 px-2 py-1 rounded text-xs font-bold ${
+                    betFeedback.outcome ? 'bg-green-500/30 text-green-300' : 'bg-red-500/30 text-red-300'
+                  }`}>
+                    {betFeedback.outcome ? 'YES' : 'NO'}
+                  </span>
+                )}
+              </div>
             </div>
-          </button>
-        </div>
+          )}
+        </>
       ) : market.resolved && evmAddress && userBet?.hasBet && userWinnings > 0n && !userBet?.withdrawn ? (
         <div className="text-center">
           <button
@@ -367,7 +494,8 @@ function MarketCardComponent({ marketId, hideDetailsLink = false }: MarketCardPr
 
 // Memoize the component to prevent unnecessary re-renders
 export const MarketCard = memo(MarketCardComponent, (prevProps, nextProps) => {
-  // Only re-render if marketId or hideDetailsLink actually changed
+  // Only re-render if props actually changed
   return prevProps.marketId === nextProps.marketId && 
-         prevProps.hideDetailsLink === nextProps.hideDetailsLink;
+         prevProps.hideDetailsLink === nextProps.hideDetailsLink &&
+         prevProps.isNewMarket === nextProps.isNewMarket;
 });

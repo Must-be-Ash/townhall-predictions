@@ -260,6 +260,8 @@ export function MarketProvider({ children }: MarketProviderProps) {
       const market = await fetchMarket(marketId);
       if (market) {
         dispatch({ type: 'SET_MARKET', marketId, market });
+        // Also trigger smart tier categorization after loading
+        marketPollingService.forceRefresh(marketId, 3); // MEDIUM priority categorization
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -269,22 +271,33 @@ export function MarketProvider({ children }: MarketProviderProps) {
     }
   }, []);
 
-  const forceRefreshMarket = useCallback(async (marketId: number) => {
+  const forceRefreshMarket = useCallback(async (marketId: number, retries = 3) => {
     dispatch({ type: 'SET_LOADING', marketId, loading: true });
     dispatch({ type: 'CLEAR_ERROR', marketId });
 
-    try {
-      // Force refresh bypasses cache and polling service
-      const market = await fetchMarket(marketId, true);
-      if (market) {
-        dispatch({ type: 'SET_MARKET', marketId, market });
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        // Force refresh bypasses cache and polling service
+        const market = await fetchMarket(marketId, true);
+        if (market) {
+          dispatch({ type: 'SET_MARKET', marketId, market });
+          return; // Success, exit retry loop
+        }
+      } catch (error) {
+        console.error(`Failed to fetch market ${marketId}, attempt ${attempt}/${retries}:`, error);
+        
+        if (attempt === retries) {
+          // Final attempt failed
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          dispatch({ type: 'SET_ERROR', marketId, error: errorMessage });
+        } else {
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+        }
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      dispatch({ type: 'SET_ERROR', marketId, error: errorMessage });
-    } finally {
-      dispatch({ type: 'SET_LOADING', marketId, loading: false });
     }
+    
+    dispatch({ type: 'SET_LOADING', marketId, loading: false });
   }, []);
 
   const getMarket = useCallback((marketId: number): Market | undefined => {

@@ -136,9 +136,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Parse market IDs from query params
+    // Parse market IDs and priority from query params
     const { searchParams } = new URL(request.url);
     const idsParam = searchParams.get('ids');
+    const isHighPriority = request.headers.get('X-Priority') === 'high';
     
     if (!idsParam) {
       return NextResponse.json(
@@ -147,7 +148,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const marketIds = idsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id) && id >= 0);
+    const marketIds = idsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id) && id >= 1);
     
     if (marketIds.length === 0) {
       return NextResponse.json(
@@ -175,13 +176,45 @@ export async function GET(request: NextRequest) {
       cachedMarketsMap.set(market.marketId, market);
     });
 
-    // Determine which markets need fresh data
+    // State-aware cache invalidation - different TTL based on market state
     const now = new Date();
-    const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
     
     const staleMarketIds = marketIds.filter(marketId => {
       const cached = cachedMarketsMap.get(marketId);
-      return !cached || cached.lastUpdated < twoMinutesAgo;
+      if (!cached) return true; // No cache = needs fresh data
+      
+      // High priority requests bypass cache for active markets
+      if (isHighPriority) {
+        const closeTime = new Date(cached.closeTime).getTime();
+        const isActive = !cached.resolved && !cached.voided && now.getTime() < closeTime;
+        if (isActive) {
+          return true; // Always fetch fresh data for active markets on high-priority requests
+        }
+      }
+      
+      // Determine appropriate TTL based on market state
+      const closeTime = new Date(cached.closeTime).getTime();
+      const isActive = !cached.resolved && !cached.voided && now.getTime() < closeTime;
+      
+      let ttlMinutes;
+      if (cached.voided || (cached.resolved && now.getTime() - closeTime > 24 * 60 * 60 * 1000)) {
+        // Final state markets: very long TTL (24 hours)
+        ttlMinutes = 24 * 60;
+      } else if (cached.resolved) {
+        // Recently resolved markets: long TTL (30 minutes) for withdrawal checking
+        ttlMinutes = 30;
+      } else if (!isActive) {
+        // Closed but unresolved: medium TTL (5 minutes)
+        ttlMinutes = 5;
+      } else {
+        // Active markets: short TTL (2 minutes, or 30 seconds for high priority)
+        ttlMinutes = isHighPriority ? 0.5 : 2;
+      }
+      
+      const ttlMs = ttlMinutes * 60 * 1000;
+      const cacheAge = now.getTime() - cached.lastUpdated.getTime();
+      
+      return cacheAge > ttlMs;
     });
 
     // Fetch fresh blockchain data for stale markets
@@ -225,6 +258,18 @@ export async function GET(request: NextRequest) {
       changes, // Markets that actually changed
       timestamp: new Date().toISOString(),
       fromCache: staleMarketIds.length === 0,
+      metadata: {
+        requestedMarkets: marketIds.length,
+        staleCacheMarkets: staleMarketIds.length,
+        freshDataFetched: freshMarkets.size,
+        isHighPriority,
+        cacheStats: {
+          activeMarkets: Object.values(result).filter(m => !m.resolved && !m.voided && new Date(m.closeTime).getTime() > Date.now()).length,
+          resolvedMarkets: Object.values(result).filter(m => m.resolved).length,
+          closedMarkets: Object.values(result).filter(m => !m.resolved && !m.voided && new Date(m.closeTime).getTime() <= Date.now()).length,
+          voidedMarkets: Object.values(result).filter(m => m.voided).length,
+        }
+      },
     });
 
   } catch (error) {

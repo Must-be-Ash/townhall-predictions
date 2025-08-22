@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useContract } from "@/hooks/useContract";
+import { formatUSDC } from "@/lib/constants";
 
 interface RecentActivityProps {
   marketId: number;
@@ -61,6 +62,7 @@ export function RecentActivity({ marketId }: RecentActivityProps) {
   if (!market) return null;
 
   const totalBets = Number(market.yesCount) + Number(market.noCount);
+  const totalPool = market.yesTotal + market.noTotal;
   const yesPercentage = totalBets > 0 ? Math.round((Number(market.yesCount) / totalBets) * 100) : 50;
   const noPercentage = 100 - yesPercentage;
 
@@ -129,7 +131,7 @@ export function RecentActivity({ marketId }: RecentActivityProps) {
             </div>
             <div className="text-center p-4 bg-[#3a3a3a] rounded-lg">
               <div className="text-2xl font-bold text-[#ffffff] mb-1">
-                ${(totalBets * 0.5).toFixed(2)}
+                {formatUSDC(totalPool)}
               </div>
               <div className="text-sm text-[#808080]">Total Amount Placed</div>
             </div>
