@@ -59,7 +59,7 @@ export default function MarketContent() {
       <DockNavigation />
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto pt-24 md:pt-32 pb-24 md:pb-8 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-4xl mx-auto pt-10 md:pt-32 pb-24 md:pb-8 px-4 sm:px-6 lg:px-8">
         <div className="space-y-8">
           
           {/* Market Card - Contains everything needed for betting */}

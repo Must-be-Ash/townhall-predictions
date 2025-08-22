@@ -101,7 +101,7 @@ export default function AdminContent() {
       <DockNavigation />
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto pt-24 md:pt-32 pb-24 md:pb-8 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-4xl mx-auto pt-10 md:pt-32 pb-24 md:pb-8 px-4 sm:px-6 lg:px-8">
 
         {/* Wallet Info */}
         <div className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-2xl p-6 mb-8">

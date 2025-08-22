@@ -140,7 +140,7 @@ export function MarketCreationForm() {
               value={closeDate}
               onChange={(e) => setCloseDate(e.target.value)}
               min={minDate}
-              className="w-full p-3 border border-[#3a3a3a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-[#1a1a1a] text-[#ffffff]"
+              className="date-input w-full p-3 border border-[#3a3a3a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-[#1a1a1a] text-[#ffffff]"
               required
               disabled={isCreating}
             />
@@ -154,7 +154,7 @@ export function MarketCreationForm() {
               type="time"
               value={closeTime}
               onChange={(e) => setCloseTime(e.target.value)}
-              className="w-full p-3 border border-[#3a3a3a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-[#1a1a1a] text-[#ffffff]"
+              className="time-input w-full p-3 border border-[#3a3a3a] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-[#1a1a1a] text-[#ffffff]"
               required
               disabled={isCreating}
             />
