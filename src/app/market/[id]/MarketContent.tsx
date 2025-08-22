@@ -1,17 +1,52 @@
 "use client";
 
-import { useIsInitialized, useIsSignedIn } from "@coinbase/cdp-hooks";
+import { useIsInitialized, useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
 import { AuthButton } from "@coinbase/cdp-react/components/AuthButton";
 import { MarketCard } from "@/components/market/MarketCard";
 import { RecentActivity } from "@/components/board/RecentActivity";
+import { MarketSettlement } from "@/components/market/MarketSettlement";
 import { useParams } from "next/navigation";
 import { DockNavigation } from "@/components/navigation/DockNavigation";
+import { useContract } from "@/hooks/useContract";
+import { useMarkets } from "@/contexts/MarketContext";
+import { useState, useEffect } from "react";
 
 export default function MarketContent() {
   const params = useParams();
   const marketId = parseInt(params.id as string);
   const { isInitialized } = useIsInitialized();
   const { isSignedIn } = useIsSignedIn();
+  const { evmAddress } = useEvmAddress();
+  const { getContractOwner } = useContract();
+  const { getMarket } = useMarkets();
+  const [isOwner, setIsOwner] = useState(false);
+  const [ownerLoading, setOwnerLoading] = useState(true);
+
+  // Check if current user is contract owner
+  useEffect(() => {
+    async function checkOwner() {
+      if (!evmAddress || !isSignedIn) {
+        setIsOwner(false);
+        setOwnerLoading(false);
+        return;
+      }
+
+      try {
+        const owner = await getContractOwner();
+        setIsOwner(evmAddress.toLowerCase() === owner.toLowerCase());
+      } catch (error) {
+        console.error("Failed to get contract owner:", error);
+        setIsOwner(false);
+      } finally {
+        setOwnerLoading(false);
+      }
+    }
+
+    checkOwner();
+  }, [evmAddress, isSignedIn, getContractOwner]);
+
+  // Get market data for settlement component
+  const marketData = getMarket(marketId);
 
   if (!isInitialized) {
     return (
@@ -64,6 +99,19 @@ export default function MarketContent() {
           
           {/* Market Card - Contains everything needed for betting */}
           <MarketCard marketId={marketId} hideDetailsLink={true} />
+          
+          {/* Settlement Controls - Only visible to contract owner */}
+          {isOwner && marketData && !ownerLoading && (
+            <MarketSettlement 
+              marketId={marketId} 
+              marketData={{
+                question: marketData.question,
+                closeTime: marketData.closeTime,
+                resolved: marketData.resolved,
+                voided: marketData.voided,
+              }}
+            />
+          )}
           
           {/* Recent Activity Feed */}
           <RecentActivity marketId={marketId} />

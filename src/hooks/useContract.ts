@@ -238,6 +238,70 @@ export function useContract() {
     // This would require listening to BetPlaced events or having an on-chain participant registry
     return [];
   }, []);
+
+  const resolveMarket = useCallback(async (marketId: number, winningOutcome: boolean) => {
+    if (!evmAddress) {
+      throw new Error("Wallet not connected");
+    }
+
+    console.log("Encoding resolve transaction data...");
+    console.log("Market ID:", marketId, "Outcome:", winningOutcome);
+    console.log("Contract address:", marketContract);
+
+    const data = encodeFunctionData({
+      abi: TOWN_HALL_PREDICTIONS_ABI,
+      functionName: "resolveMarket",
+      args: [BigInt(marketId), winningOutcome],
+    });
+
+    console.log("Sending resolve transaction...");
+    const result = await sendEvmTransaction({
+      transaction: {
+        to: marketContract,
+        data,
+        gas: 500000n,
+        chainId: 84532,
+        type: "eip1559",
+      },
+      evmAccount: evmAddress,
+      network: "base-sepolia",
+    });
+
+    console.log("Resolve transaction sent, result:", result);
+    return result;
+  }, [evmAddress, sendEvmTransaction, marketContract]);
+
+  const voidMarket = useCallback(async (marketId: number) => {
+    if (!evmAddress) {
+      throw new Error("Wallet not connected");
+    }
+
+    console.log("Encoding void transaction data...");
+    console.log("Market ID:", marketId);
+    console.log("Contract address:", marketContract);
+
+    const data = encodeFunctionData({
+      abi: TOWN_HALL_PREDICTIONS_ABI,
+      functionName: "voidMarket",
+      args: [BigInt(marketId)],
+    });
+
+    console.log("Sending void transaction...");
+    const result = await sendEvmTransaction({
+      transaction: {
+        to: marketContract,
+        data,
+        gas: 300000n,
+        chainId: 84532,
+        type: "eip1559",
+      },
+      evmAccount: evmAddress,
+      network: "base-sepolia",
+    });
+
+    console.log("Void transaction sent, result:", result);
+    return result;
+  }, [evmAddress, sendEvmTransaction, marketContract]);
   
   return {
     createMarket,
@@ -255,6 +319,8 @@ export function useContract() {
     getBaseMaxBetsPerSide,
     getMultiplierBase,
     getMarketParticipants,
+    resolveMarket,
+    voidMarket,
     BET_AMOUNT,
   };
 }
