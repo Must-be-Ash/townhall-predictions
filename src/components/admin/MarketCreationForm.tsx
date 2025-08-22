@@ -29,9 +29,10 @@ export function MarketCreationForm() {
       const closeDateTime = new Date(`${closeDate}T${closeTime}`);
       const closeTimestamp = Math.floor(closeDateTime.getTime() / 1000);
       
-      // Check if close time is in the future
-      if (closeTimestamp <= Math.floor(Date.now() / 1000)) {
-        alert("Close time must be in the future");
+      // Check if close time is in the future (at least 1 minute from now)
+      const nowTimestamp = Math.floor(Date.now() / 1000);
+      if (closeTimestamp <= nowTimestamp) {
+        alert("Close time must be in the future. Please select a time at least 1 minute from now.");
         return;
       }
       
@@ -64,7 +65,11 @@ export function MarketCreationForm() {
   };
   
   const now = new Date();
-  const minDate = now.toISOString().split('T')[0];
+  // Get today's date in user's local timezone, not UTC
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const minDate = `${year}-${month}-${day}`;
   
   return (
     <div className="bg-[#2a2a2a] rounded-lg shadow-lg p-6 border border-[#3a3a3a]">

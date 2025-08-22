@@ -29,8 +29,8 @@ export function LiveMarketDisplay({ marketId }: LiveMarketDisplayProps) {
   const [market, setMarket] = useState<Market | null>(null);
   const [yesMultiplier, setYesMultiplier] = useState<bigint>(100n);
   const [noMultiplier, setNoMultiplier] = useState<bigint>(100n);
-  const [yesCap, setYesCap] = useState<bigint>(15n);
-  const [noCap, setNoCap] = useState<bigint>(15n);
+  const [yesCap, setYesCap] = useState<bigint>(50n);
+  const [noCap, setNoCap] = useState<bigint>(50n);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());

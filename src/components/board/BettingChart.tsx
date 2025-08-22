@@ -106,7 +106,7 @@ export function BettingChart({ yesTotal, noTotal, yesCount, noCount }: BettingCh
       {totalBets > 0 && (
         <div className="mt-8 text-center">
           <div className="inline-flex items-center space-x-4 text-gray-400 text-sm">
-            <span>💰 Fixed bet amount: $0.50 USDC</span>
+            <span>💰 Fixed bet amount: $1.00 USDC</span>
             <span>•</span>
             <span>👥 {totalBets} total participants</span>
             <span>•</span>

@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Town Hall Predictions is a binary prediction market application for internal company town halls built with Next.js, Solidity smart contracts, and Coinbase Developer Platform (CDP) for wallet authentication. Users place fixed $0.50 USDC bets on Yes/No outcomes for town hall events.
+Town Hall Predictions is a binary prediction market application for internal company town halls built with Next.js, Solidity smart contracts, and Coinbase Developer Platform (CDP) for wallet authentication. Users place fixed $1.00 USDC bets on Yes/No outcomes for town hall events.
 
 ## Architecture
 
@@ -30,7 +30,7 @@ This is a full-stack Web3 application with three main components:
 ### Key Application Flow
 1. Users authenticate via CDP email OTP
 2. Admin creates markets with questions and close times
-3. Users place fixed $0.50 USDC bets (Yes/No)
+3. Users place fixed $1.00 USDC bets (Yes/No)
 4. Admin resolves markets after close time
 5. Winners claim pro-rata winnings, losers get nothing
 
@@ -114,7 +114,9 @@ MongoDB schemas are defined in `src/lib/models/`:
 
 ### Smart Contract Architecture
 The `TownHallPredictions.sol` contract implements:
-- Fixed-amount betting (0.5 USDC per bet)
+- Fixed-amount betting (1.0 USDC per bet)
+- Maximum 100 participants per market (50 per side)
+- Dynamic betting caps to prevent extreme imbalances
 - Admin-only market creation and resolution
 - Pro-rata winner payouts
 - Market voiding for disputes
@@ -142,8 +144,11 @@ ETHERSCAN_API_KEY=your_etherscan_api_key
 ## Contract Addresses
 
 Current deployment on Base Sepolia (Chain ID: 84532):
-- **TownHallPredictions**: `0xD29171878ae652B72b140706A8AcB1E1C39A29c9`
+- **TownHallPredictions**: `0x40B607DAed835Bf2126CB1f8762f3B09D1dde710`
 - **USDC**: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+
+Previous deployments:
+- Old contract (deprecated): `0xD29171878ae652B72b140706A8AcB1E1C39A29c9`
 
 These are defined in `src/lib/constants.ts`.
 

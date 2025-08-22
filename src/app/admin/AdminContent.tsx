@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useIsInitialized, useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
 import { AuthButton } from "@coinbase/cdp-react/components/AuthButton";
 import { MarketCreationForm } from "@/components/admin/MarketCreationForm";
+import { BulkWithdrawal } from "@/components/admin/BulkWithdrawal";
 import { DockNavigation } from "@/components/navigation/DockNavigation";
 import { createPublicClient, http, formatUnits } from "viem";
 import { baseSepolia } from "viem/chains";
@@ -131,9 +132,10 @@ export default function AdminContent() {
                 {usdcBalance ? `${parseFloat(usdcBalance).toFixed(2)} USDC` : 'Loading...'}
               </span>
             </div>
+            <BulkWithdrawal />
           </div>
         </div>
-        
+
         <MarketCreationForm />
       </main>
     </div>

@@ -31,7 +31,7 @@ export function LandingPage() {
             Friendly match of prediction market
           </h1>
           <p className="text-[#808080]">
-            Let&apos;s have some fun without the losses
+          prediction market fun without the risks
           </p>
           {/* Login Button */}
           <div className="w-full">

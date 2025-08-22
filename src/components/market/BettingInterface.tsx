@@ -48,8 +48,8 @@ export function BettingInterface({ marketId }: BettingInterfaceProps) {
   const [usdcBalance, setUsdcBalance] = useState<bigint>(0n);
   const [yesMultiplier, setYesMultiplier] = useState<bigint>(100n);
   const [noMultiplier, setNoMultiplier] = useState<bigint>(100n);
-  const [yesCap, setYesCap] = useState<bigint>(15n);
-  const [noCap, setNoCap] = useState<bigint>(15n);
+  const [yesCap, setYesCap] = useState<bigint>(50n);
+  const [noCap, setNoCap] = useState<bigint>(50n);
   const [isLoading, setIsLoading] = useState(true);
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState<boolean | null>(null);
@@ -324,7 +324,7 @@ export function BettingInterface({ marketId }: BettingInterfaceProps) {
                 <div className="text-center">
                   <div>Bet YES ($${BET_AMOUNT_DISPLAY})</div>
                   <div className="text-xs opacity-90">
-                    Win {((Number(yesMultiplier) / 100) * 0.5).toFixed(2)}+ USDC
+                    Win {((Number(yesMultiplier) / 100) * 1.0).toFixed(2)}+ USDC
                   </div>
                 </div>
               )}
@@ -348,7 +348,7 @@ export function BettingInterface({ marketId }: BettingInterfaceProps) {
                 <div className="text-center">
                   <div>Bet NO ($${BET_AMOUNT_DISPLAY})</div>
                   <div className="text-xs opacity-90">
-                    Win {((Number(noMultiplier) / 100) * 0.5).toFixed(2)}+ USDC
+                    Win {((Number(noMultiplier) / 100) * 1.0).toFixed(2)}+ USDC
                   </div>
                 </div>
               )}

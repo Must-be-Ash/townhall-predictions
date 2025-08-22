@@ -1,5 +1,5 @@
-export const BET_AMOUNT = 500000n; // 0.5 USDC in 6-decimal format
-export const BET_AMOUNT_DISPLAY = "0.50"; // Display format
+export const BET_AMOUNT = 1000000n; // 1.0 USDC in 6-decimal format
+export const BET_AMOUNT_DISPLAY = "1.00"; // Display format
 
 export const MARKET_STATUS = {
   ACTIVE: "active",
@@ -52,7 +52,7 @@ export const CONTRACT_ADDRESSES = {
   },
   TOWN_HALL_PREDICTIONS: {
     // Base Sepolia testnet - deployed address
-    84532: process.env.NEXT_PUBLIC_PREDICTIONS_CONTRACT_ADDRESS || "0x90be9a084CcaFBfb727Ad1F2F6E68e75D4f7ED6B",
+    84532: process.env.NEXT_PUBLIC_PREDICTIONS_CONTRACT_ADDRESS || "0x40B607DAed835Bf2126CB1f8762f3B09D1dde710",
     // Base mainnet  
     8453: "",
   },

@@ -33,11 +33,11 @@ contract TownHallPredictions is Ownable, ReentrancyGuard {
         bool withdrawn;          // Whether they have withdrawn their winnings/refund
     }
     
-    /// @notice The fixed bet amount in USDC (0.5 USDC with 6 decimals)
-    uint256 public constant BET_AMOUNT = 500000; // 0.5 USDC (6 decimals)
+    /// @notice The fixed bet amount in USDC (1.0 USDC with 6 decimals)
+    uint256 public constant BET_AMOUNT = 1000000; // 1.0 USDC (6 decimals)
     
     /// @notice Maximum bets per side before dynamic caps kick in
-    uint256 public constant BASE_MAX_BETS_PER_SIDE = 15;
+    uint256 public constant BASE_MAX_BETS_PER_SIDE = 50;
     
     /// @notice Multiplier precision (100 = 1.0x, 150 = 1.5x, 80 = 0.8x)
     uint256 public constant MULTIPLIER_BASE = 100;

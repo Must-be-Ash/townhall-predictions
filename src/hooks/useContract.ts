@@ -19,6 +19,45 @@ export function useContract() {
   const marketContract = CONTRACT_ADDRESSES.TOWN_HALL_PREDICTIONS[84532] as `0x${string}`;
   const usdcContract = CONTRACT_ADDRESSES.USDC[84532] as `0x${string}`;
   
+  // Helper function to handle nonce retry logic
+  const sendTransactionWithRetry = useCallback(async (transactionParams: {
+    transaction: {
+      to: `0x${string}`;
+      data: `0x${string}`;
+      gas: bigint;
+      chainId: number;
+      type: "eip1559";
+    };
+    evmAccount: `0x${string}`;
+    network: "base-sepolia";
+  }) => {
+    let result;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        result = await sendEvmTransaction(transactionParams);
+        break; // Success, exit retry loop
+      } catch (error: unknown) {
+        attempts++;
+        
+        // Check if it's a nonce error
+        if (error instanceof Error && error.message.includes('Nonce too low') && attempts < maxAttempts) {
+          console.log(`Nonce error on attempt ${attempts}, retrying...`);
+          // Wait a short time before retry to let nonce sync
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          continue;
+        }
+        
+        // If not a nonce error or max attempts reached, throw the error
+        throw error;
+      }
+    }
+    
+    return result;
+  }, [sendEvmTransaction]);
+  
   const createMarket = useCallback(async (question: string, closeTime: number) => {
     if (!evmAddress) throw new Error("Wallet not connected");
     
@@ -28,7 +67,7 @@ export function useContract() {
       args: [question, BigInt(closeTime)],
     });
     
-    const result = await sendEvmTransaction({
+    const result = await sendTransactionWithRetry({
       transaction: {
         to: marketContract,
         data,
@@ -36,12 +75,12 @@ export function useContract() {
         chainId: 84532,
         type: "eip1559",
       },
-      evmAccount: evmAddress,
+      evmAccount: evmAddress as `0x${string}`,
       network: "base-sepolia",
     });
     
     return result;
-  }, [evmAddress, sendEvmTransaction, marketContract]);
+  }, [evmAddress, sendTransactionWithRetry, marketContract]);
   
   const placeBet = useCallback(async (marketId: number, outcome: boolean) => {
     if (!evmAddress) throw new Error("Wallet not connected");
@@ -57,7 +96,8 @@ export function useContract() {
     });
     
     console.log("Sending transaction...");
-    const result = await sendEvmTransaction({
+    
+    const result = await sendTransactionWithRetry({
       transaction: {
         to: marketContract,
         data,
@@ -65,13 +105,13 @@ export function useContract() {
         chainId: 84532,
         type: "eip1559",
       },
-      evmAccount: evmAddress,
+      evmAccount: evmAddress as `0x${string}`,
       network: "base-sepolia",
     });
     
     console.log("Transaction sent, result:", result);
     return result;
-  }, [evmAddress, sendEvmTransaction, marketContract]);
+  }, [evmAddress, sendTransactionWithRetry, marketContract]);
   
   const approveUSDC = useCallback(async (amount: bigint) => {
     if (!evmAddress) throw new Error("Wallet not connected");
@@ -82,7 +122,7 @@ export function useContract() {
       args: [marketContract, amount],
     });
     
-    const result = await sendEvmTransaction({
+    const result = await sendTransactionWithRetry({
       transaction: {
         to: usdcContract,
         data,
@@ -90,12 +130,12 @@ export function useContract() {
         chainId: 84532,
         type: "eip1559",
       },
-      evmAccount: evmAddress,
+      evmAccount: evmAddress as `0x${string}`,
       network: "base-sepolia",
     });
     
     return result;
-  }, [evmAddress, sendEvmTransaction, usdcContract, marketContract]);
+  }, [evmAddress, sendTransactionWithRetry, usdcContract, marketContract]);
   
   const checkUSDCAllowance = useCallback(async (owner: string): Promise<bigint> => {
     const allowance = await publicClient.readContract({
@@ -239,6 +279,52 @@ export function useContract() {
     return [];
   }, []);
 
+  const getAllUserWinnings = useCallback(async (userAddress: string) => {
+    if (!userAddress) return { markets: [], totalWinnings: 0n };
+
+    try {
+      // Get the total number of markets
+      const marketCount = await getMarketCounter();
+      const marketCountNumber = Number(marketCount);
+      
+      const marketsWithWinnings = [];
+      let totalWinnings = 0n;
+
+      // Check each market for pending winnings
+      for (let i = 1; i <= marketCountNumber; i++) {
+        try {
+          const [market, userBet, winnings] = await Promise.all([
+            getMarket(i),
+            getUserBet(i, userAddress),
+            calculateWinnings(i, userAddress)
+          ]);
+
+          // Only include markets where user has winnings and hasn't withdrawn
+          if (market.resolved && userBet.hasBet && winnings > 0n && !userBet.withdrawn) {
+            marketsWithWinnings.push({
+              marketId: i,
+              question: market.question,
+              winnings: winnings,
+              outcome: userBet.outcome
+            });
+            totalWinnings += winnings;
+          }
+        } catch (error) {
+          console.error(`Failed to check market ${i}:`, error);
+          // Continue checking other markets even if one fails
+        }
+      }
+
+      return {
+        markets: marketsWithWinnings,
+        totalWinnings
+      };
+    } catch (error) {
+      console.error("Failed to get all user winnings:", error);
+      return { markets: [], totalWinnings: 0n };
+    }
+  }, [getMarketCounter, getMarket, getUserBet, calculateWinnings]);
+
   const resolveMarket = useCallback(async (marketId: number, winningOutcome: boolean) => {
     if (!evmAddress) {
       throw new Error("Wallet not connected");
@@ -255,7 +341,7 @@ export function useContract() {
     });
 
     console.log("Sending resolve transaction...");
-    const result = await sendEvmTransaction({
+    const result = await sendTransactionWithRetry({
       transaction: {
         to: marketContract,
         data,
@@ -263,13 +349,13 @@ export function useContract() {
         chainId: 84532,
         type: "eip1559",
       },
-      evmAccount: evmAddress,
+      evmAccount: evmAddress as `0x${string}`,
       network: "base-sepolia",
     });
 
     console.log("Resolve transaction sent, result:", result);
     return result;
-  }, [evmAddress, sendEvmTransaction, marketContract]);
+  }, [evmAddress, sendTransactionWithRetry, marketContract]);
 
   const voidMarket = useCallback(async (marketId: number) => {
     if (!evmAddress) {
@@ -287,7 +373,7 @@ export function useContract() {
     });
 
     console.log("Sending void transaction...");
-    const result = await sendEvmTransaction({
+    const result = await sendTransactionWithRetry({
       transaction: {
         to: marketContract,
         data,
@@ -295,13 +381,45 @@ export function useContract() {
         chainId: 84532,
         type: "eip1559",
       },
-      evmAccount: evmAddress,
+      evmAccount: evmAddress as `0x${string}`,
       network: "base-sepolia",
     });
 
     console.log("Void transaction sent, result:", result);
     return result;
-  }, [evmAddress, sendEvmTransaction, marketContract]);
+  }, [evmAddress, sendTransactionWithRetry, marketContract]);
+
+  const withdrawWinnings = useCallback(async (marketId: number) => {
+    if (!evmAddress) {
+      throw new Error("Wallet not connected");
+    }
+
+    console.log("Encoding withdraw transaction data...");
+    console.log("Market ID:", marketId);
+    console.log("Contract address:", marketContract);
+
+    const data = encodeFunctionData({
+      abi: TOWN_HALL_PREDICTIONS_ABI,
+      functionName: "withdrawWinnings",
+      args: [BigInt(marketId)],
+    });
+
+    console.log("Sending withdraw transaction...");
+    const result = await sendTransactionWithRetry({
+      transaction: {
+        to: marketContract,
+        data,
+        gas: 300000n,
+        chainId: 84532,
+        type: "eip1559",
+      },
+      evmAccount: evmAddress as `0x${string}`,
+      network: "base-sepolia",
+    });
+
+    console.log("Withdraw transaction sent, result:", result);
+    return result;
+  }, [evmAddress, sendTransactionWithRetry, marketContract]);
   
   return {
     createMarket,
@@ -319,8 +437,10 @@ export function useContract() {
     getBaseMaxBetsPerSide,
     getMultiplierBase,
     getMarketParticipants,
+    getAllUserWinnings,
     resolveMarket,
     voidMarket,
+    withdrawWinnings,
     BET_AMOUNT,
   };
 }
