@@ -1,22 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { useContract } from "@/hooks/useContract";
 import { useEvmAddress } from "@coinbase/cdp-hooks";
 import { formatUSDC } from "@/lib/constants";
+import { useMarkets } from "@/contexts/MarketContext";
 import Link from "next/link";
 
-interface Market {
-  question: string;
-  closeTime: bigint;
-  resolved: boolean;
-  winningOutcome: boolean;
-  yesTotal: bigint;
-  noTotal: bigint;
-  yesCount: bigint;
-  noCount: bigint;
-  voided: boolean;
-  createdAt: bigint;
+// Component for smooth number transitions
+function AnimatedNumber({ value, format = (n) => n.toString() }: { value: number; format?: (n: number) => string }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const [isAnimating, setIsAnimating] = useState(false);
+  
+  useEffect(() => {
+    if (value !== displayValue) {
+      setIsAnimating(true);
+      const timer = setTimeout(() => {
+        setDisplayValue(value);
+        setIsAnimating(false);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [value, displayValue]);
+  
+  return (
+    <span className={`transition-all duration-300 ${isAnimating ? 'scale-105 text-blue-400' : ''}`}>
+      {format(displayValue)}
+    </span>
+  );
 }
 
 interface MarketCardProps {
@@ -24,52 +35,48 @@ interface MarketCardProps {
   hideDetailsLink?: boolean;
 }
 
-export function MarketCard({ marketId, hideDetailsLink = false }: MarketCardProps) {
-  const [market, setMarket] = useState<Market | null>(null);
-  const [yesMultiplier, setYesMultiplier] = useState<bigint>(100n);
-  const [noMultiplier, setNoMultiplier] = useState<bigint>(100n);
+function MarketCardComponent({ marketId, hideDetailsLink = false }: MarketCardProps) {
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState<boolean | null>(null);
   const { evmAddress } = useEvmAddress();
   const { 
-    getMarket, 
     placeBet, 
     approveUSDC, 
     checkUSDCAllowance,
-    getPayoutMultiplier,
     BET_AMOUNT 
   } = useContract();
+  
+  // Use centralized market state
+  const { getMarket, refreshMarket, forceRefreshMarket, isLoading, getError, optimisticUpdate } = useMarkets();
+  const market = getMarket(marketId);
+  const error = getError(marketId);
+  const isUpdating = isLoading(marketId);
+  
+  // Store refresh function in ref to avoid useEffect dependency issues
+  const refreshMarketRef = useRef(refreshMarket);
+  refreshMarketRef.current = refreshMarket;
 
-  // Load market data
+  // Load market data using centralized state (only initial load, polling handled centrally)
   useEffect(() => {
-    async function loadMarketData() {
-      try {
-        const [marketData, yesMultiplierData, noMultiplierData] = await Promise.all([
-          getMarket(marketId),
-          getPayoutMultiplier(marketId, true),
-          getPayoutMultiplier(marketId, false)
-        ]);
-        
-        setMarket(marketData as Market);
-        setYesMultiplier(yesMultiplierData);
-        setNoMultiplier(noMultiplierData);
-      } catch (err) {
-        console.error("Failed to load market data:", err);
-      }
-    }
-
-    loadMarketData();
-    
-    // Refresh every 5 seconds
-    const interval = setInterval(loadMarketData, 5000);
-    return () => clearInterval(interval);
-  }, [marketId, getMarket, getPayoutMultiplier]);
+    // Initial load only - polling will be handled by centralized service
+    refreshMarketRef.current(marketId);
+  }, [marketId]);
 
   const handleBet = async (outcome: boolean) => {
     if (!evmAddress || !market || isPlacingBet) return;
     
     setIsPlacingBet(true);
     setSelectedOutcome(outcome);
+    
+    // Optimistic update - immediately show the effect of the bet
+    const optimisticUpdates = {
+      yesCount: market.yesCount + (outcome ? 1 : 0),
+      noCount: market.noCount + (outcome ? 0 : 1),
+      yesTotal: (BigInt(market.yesTotal) + (outcome ? BET_AMOUNT : BigInt(0))).toString(),
+      noTotal: (BigInt(market.noTotal) + (outcome ? BigInt(0) : BET_AMOUNT)).toString(),
+    };
+    
+    optimisticUpdate(marketId, optimisticUpdates);
     
     try {
       // Check USDC allowance
@@ -83,19 +90,29 @@ export function MarketCard({ marketId, hideDetailsLink = false }: MarketCardProp
       // Place the bet
       await placeBet(marketId, outcome);
       
-      // Refresh market data
-      const [marketData, yesMultiplierData, noMultiplierData] = await Promise.all([
-        getMarket(marketId),
-        getPayoutMultiplier(marketId, true),
-        getPayoutMultiplier(marketId, false)
-      ]);
+      // Wait for blockchain state to propagate with retry logic
+      const originalYesCount = market.yesCount;
+      const originalNoCount = market.noCount;
       
-      setMarket(marketData as Market);
-      setYesMultiplier(yesMultiplierData);
-      setNoMultiplier(noMultiplierData);
+      let attempts = 0;
+      const maxAttempts = 10;
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await forceRefreshMarket(marketId);
+        
+        // Get fresh market data to check if bet was recorded
+        const updatedMarket = getMarket(marketId);
+        if (updatedMarket && 
+            (updatedMarket.yesCount > originalYesCount || updatedMarket.noCount > originalNoCount)) {
+          break; // Bet was recorded, we're done
+        }
+        attempts++;
+      }
       
     } catch (error) {
       console.error("Failed to place bet:", error);
+      // Revert optimistic update on error by refreshing
+      await forceRefreshMarket(marketId);
       alert("Failed to place bet. Please try again.");
     } finally {
       setIsPlacingBet(false);
@@ -107,7 +124,8 @@ export function MarketCard({ marketId, hideDetailsLink = false }: MarketCardProp
     return (
       <div className="bg-[#2a2a2a] rounded-2xl p-6 animate-pulse border border-[#3a3a3a]">
         <div className="h-4 bg-[#3a3a3a] rounded mb-4"></div>
-        <div className="h-32 bg-[#3a3a3a] rounded mb-4"></div>
+        <div className="h-14 bg-[#3a3a3a] rounded mb-4"></div>
+        <div className="h-2 bg-[#3a3a3a] rounded mb-4"></div>
         <div className="flex space-x-4">
           <div className="flex-1 h-12 bg-[#3a3a3a] rounded"></div>
           <div className="flex-1 h-12 bg-[#3a3a3a] rounded"></div>
@@ -116,9 +134,20 @@ export function MarketCard({ marketId, hideDetailsLink = false }: MarketCardProp
     );
   }
 
-  const totalPool = market.yesTotal + market.noTotal;
-  const totalBets = Number(market.yesCount) + Number(market.noCount);
-  const closeTime = new Date(Number(market.closeTime) * 1000);
+  if (error) {
+    return (
+      <div className="bg-[#2a2a2a] rounded-2xl p-6 border border-red-500/20">
+        <div className="text-center">
+          <p className="text-red-400 mb-2">Failed to load market</p>
+          <p className="text-sm text-[#808080]">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const totalPool = BigInt(market.yesTotal) + BigInt(market.noTotal);
+  const totalBets = market.yesCount + market.noCount;
+  const closeTime = new Date(market.closeTime);
   const isActive = !market.resolved && !market.voided && Date.now() < closeTime.getTime();
   
   // Calculate percentages
@@ -126,7 +155,7 @@ export function MarketCard({ marketId, hideDetailsLink = false }: MarketCardProp
   let noPercentage = 50;
   
   if (totalBets > 0) {
-    yesPercentage = Math.round((Number(market.yesCount) / totalBets) * 100);
+    yesPercentage = Math.round((market.yesCount / totalBets) * 100);
     noPercentage = 100 - yesPercentage;
   }
 
@@ -134,8 +163,17 @@ export function MarketCard({ marketId, hideDetailsLink = false }: MarketCardProp
   const hoursRemaining = Math.max(0, Math.floor(timeRemaining / (1000 * 60 * 60)));
   const daysRemaining = Math.floor(hoursRemaining / 24);
 
+  // Get multipliers from API data or default to 1.00x
+  const yesMultiplier = market.yesMultiplier || 100;
+  const noMultiplier = market.noMultiplier || 100;
+
   return (
-    <div className="bg-[#2a2a2a] rounded-2xl p-6 border border-[#3a3a3a] hover:border-[#808080] transition-all duration-200">
+    <div className={`bg-[#2a2a2a] rounded-2xl p-6 border border-[#3a3a3a] hover:border-[#808080] transition-all duration-200 relative ${isUpdating ? 'ring-2 ring-blue-500/20' : ''}`}>
+      {/* Update indicator */}
+      {isUpdating && (
+        <div className="absolute top-2 right-2 w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+      )}
+      
       {/* Market Header */}
       <div className="mb-4">
         <div className="flex items-center justify-between text-sm text-[#808080] mb-2">
@@ -144,10 +182,10 @@ export function MarketCard({ marketId, hideDetailsLink = false }: MarketCardProp
           </span>
           <div className="flex items-center space-x-4">
             <span className="flex items-center">
-              👥 +{totalBets}
+              👥 +<AnimatedNumber value={totalBets} />
             </span>
             <span className="flex items-center">
-              💰 {formatUSDC(totalPool)}
+              💰 <AnimatedNumber value={Number(totalPool)} format={(n) => formatUSDC(BigInt(n))} />
             </span>
             <span className="flex items-center">
               ⏰ {daysRemaining > 0 ? `${daysRemaining}d` : `${hoursRemaining}h`}
@@ -157,15 +195,19 @@ export function MarketCard({ marketId, hideDetailsLink = false }: MarketCardProp
       </div>
 
       {/* Question */}
-      <div className="text-[#ffffff] text-lg font-bold mb-4 leading-tight font-sans h-14 overflow-hidden line-clamp-2">
+      <div className="text-[#ffffff] text-lg font-bold mb-4 leading-tight font-sans h-14 overflow-hidden" style={{
+        display: '-webkit-box',
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical'
+      }}>
         {market.question}
       </div>
 
       {/* Odds Bar */}
       <div className="mb-4">
         <div className="flex items-center justify-between text-sm text-[#c0c0c0] mb-2">
-          <span>{yesPercentage}%</span>
-          <span>{noPercentage}%</span>
+          <span><AnimatedNumber value={yesPercentage} format={(n) => `${n}%`} /></span>
+          <span><AnimatedNumber value={noPercentage} format={(n) => `${n}%`} /></span>
         </div>
         <div className="w-full h-2 bg-[#3a3a3a] rounded-full overflow-hidden">
           <div 
@@ -191,9 +233,9 @@ export function MarketCard({ marketId, hideDetailsLink = false }: MarketCardProp
           >
             <div className="flex items-center justify-center">
               <span className="mr-2">YES</span>
-              {yesMultiplier !== 100n && (
+              {yesMultiplier !== 100 && (
                 <span className="text-xs bg-green-600 px-2 py-1 rounded-full">
-                  {(Number(yesMultiplier) / 100).toFixed(2)}x
+                  {(yesMultiplier / 100).toFixed(2)}x
                 </span>
               )}
             </div>
@@ -210,9 +252,9 @@ export function MarketCard({ marketId, hideDetailsLink = false }: MarketCardProp
           >
             <div className="flex items-center justify-center">
               <span className="mr-2">NO</span>
-              {noMultiplier !== 100n && (
+              {noMultiplier !== 100 && (
                 <span className="text-xs bg-red-600 px-2 py-1 rounded-full">
-                  {(Number(noMultiplier) / 100).toFixed(2)}x
+                  {(noMultiplier / 100).toFixed(2)}x
                 </span>
               )}
             </div>
@@ -242,3 +284,10 @@ export function MarketCard({ marketId, hideDetailsLink = false }: MarketCardProp
     </div>
   );
 }
+
+// Memoize the component to prevent unnecessary re-renders
+export const MarketCard = memo(MarketCardComponent, (prevProps, nextProps) => {
+  // Only re-render if marketId or hideDetailsLink actually changed
+  return prevProps.marketId === nextProps.marketId && 
+         prevProps.hideDetailsLink === nextProps.hideDetailsLink;
+});

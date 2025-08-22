@@ -2,6 +2,7 @@
 
 import { CDPReactProvider, type AppConfig, type Theme } from "@coinbase/cdp-react";
 import { type Config } from "@coinbase/cdp-core";
+import { MarketProvider } from "@/contexts/MarketContext";
 
 const CDP_CONFIG: Config = {
   projectId: process.env.NEXT_PUBLIC_CDP_PROJECT_ID ?? "",
@@ -26,7 +27,9 @@ interface ProvidersProps {
 export function CDPProvider({ children }: ProvidersProps) {
   return (
     <CDPReactProvider config={CDP_CONFIG} app={APP_CONFIG} theme={THEME}>
-      {children}
+      <MarketProvider>
+        {children}
+      </MarketProvider>
     </CDPReactProvider>
   );
 }

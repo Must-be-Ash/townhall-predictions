@@ -73,7 +73,6 @@ const MarketCacheSchema = new mongoose.Schema<IMarketCache>({
 });
 
 // Create indexes for better query performance
-MarketCacheSchema.index({ marketId: 1 });
 MarketCacheSchema.index({ resolved: 1 });
 MarketCacheSchema.index({ voided: 1 });
 MarketCacheSchema.index({ closeTime: 1 });

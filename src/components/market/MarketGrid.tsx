@@ -4,70 +4,74 @@ import { useState, useEffect } from "react";
 import { MarketCard } from "./MarketCard";
 import { SearchAndFilter, FilterOptions } from "./SearchAndFilter";
 import { useContract } from "@/hooks/useContract";
+import { useMarkets } from "@/contexts/MarketContext";
 
 interface Market {
   question: string;
-  closeTime: bigint;
+  closeTime: string | Date;
   resolved: boolean;
   winningOutcome: boolean;
-  yesTotal: bigint;
-  noTotal: bigint;
-  yesCount: bigint;
-  noCount: bigint;
+  yesTotal: string;
+  noTotal: string;
+  yesCount: number;
+  noCount: number;
   voided: boolean;
-  createdAt: bigint;
+  createdAt: string | Date;
+  yesMultiplier?: number;
+  noMultiplier?: number;
 }
 
 export function MarketGrid() {
-  const [markets, setMarkets] = useState<{ id: number; data: Market }[]>([]);
+  const [marketIds, setMarketIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<FilterOptions>({
     search: '',
     sortBy: 'newest'
   });
 
-  const { getMarketCounter, getMarket } = useContract();
+  const { getMarketCounter } = useContract();
+  const { getMarket, refreshMarket } = useMarkets();
 
-  // Load all markets
+  // Load market IDs once (polling service handles data updates)
   useEffect(() => {
-    async function loadMarkets() {
+    async function loadMarketIds() {
       try {
         setLoading(true);
         const marketCounter = await getMarketCounter();
         const marketCount = Number(marketCounter);
         
         if (marketCount === 0) {
-          setMarkets([]);
+          setMarketIds([]);
           setLoading(false);
           return;
         }
 
-        // Load all markets
-        const marketPromises = [];
-        for (let i = 0; i < marketCount; i++) {
-          marketPromises.push(
-            getMarket(i).then(market => ({ id: i, data: market as Market }))
-          );
-        }
-
-        const allMarkets = await Promise.all(marketPromises);
-        setMarkets(allMarkets);
+        // Create array of market IDs
+        const ids = Array.from({ length: marketCount }, (_, i) => i);
+        setMarketIds(ids);
       } catch (error) {
-        console.error("Failed to load markets:", error);
+        console.error("Failed to load market count:", error);
       } finally {
         setLoading(false);
       }
     }
 
-    loadMarkets();
-    
-    // Refresh every 10 seconds
-    const interval = setInterval(loadMarkets, 10000);
-    return () => clearInterval(interval);
-  }, [getMarketCounter, getMarket]);
+    loadMarketIds();
+  }, [getMarketCounter]);
 
-  // Filter and sort markets
-  const filteredMarkets = markets
+  // Trigger loading for each market ID through centralized system
+  useEffect(() => {
+    marketIds.forEach(id => {
+      refreshMarket(id);
+    });
+  }, [marketIds, refreshMarket]);
+
+  // Get market data from centralized context and filter/sort
+  const marketsWithData = marketIds
+    .map(id => ({ id, data: getMarket(id) }))
+    .filter(market => market.data !== undefined) as { id: number; data: Market }[];
+
+  const filteredMarkets = marketsWithData
     .filter(market => {
       const { data } = market;
       
@@ -81,17 +85,21 @@ export function MarketGrid() {
     .sort((a, b) => {
       switch (filters.sortBy) {
         case 'newest':
-          return Number(b.data.createdAt) - Number(a.data.createdAt);
+          const aCreated = new Date(a.data.createdAt).getTime();
+          const bCreated = new Date(b.data.createdAt).getTime();
+          return bCreated - aCreated;
         case 'mostActive':
-          const aTotalBets = Number(a.data.yesCount) + Number(a.data.noCount);
-          const bTotalBets = Number(b.data.yesCount) + Number(b.data.noCount);
+          const aTotalBets = a.data.yesCount + a.data.noCount;
+          const bTotalBets = b.data.yesCount + b.data.noCount;
           return bTotalBets - aTotalBets;
         case 'highestPool':
-          const aTotalPool = Number(a.data.yesTotal) + Number(a.data.noTotal);
-          const bTotalPool = Number(b.data.yesTotal) + Number(b.data.noTotal);
-          return bTotalPool - aTotalPool;
+          const aTotalPool = BigInt(a.data.yesTotal) + BigInt(a.data.noTotal);
+          const bTotalPool = BigInt(b.data.yesTotal) + BigInt(b.data.noTotal);
+          return Number(bTotalPool - aTotalPool);
         case 'closingSoon':
-          return Number(a.data.closeTime) - Number(b.data.closeTime);
+          const aCloseTime = new Date(a.data.closeTime).getTime();
+          const bCloseTime = new Date(b.data.closeTime).getTime();
+          return aCloseTime - bCloseTime;
         default:
           return 0;
       }
@@ -121,7 +129,7 @@ export function MarketGrid() {
     );
   }
 
-  if (markets.length === 0) {
+  if (marketIds.length === 0) {
     return (
       <div className="space-y-6">
         <SearchAndFilter 
