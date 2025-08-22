@@ -1,9 +1,9 @@
 "use client";
 
 import { useIsInitialized, useIsSignedIn } from "@coinbase/cdp-hooks";
-import { AuthButton } from "@coinbase/cdp-react/components/AuthButton";
 import { MarketGrid } from "./market/MarketGrid";
 import { DockNavigation } from "./navigation/DockNavigation";
+import { LandingPage } from "./landing/LandingPage";
 
 export default function ClientApp() {
   const { isInitialized } = useIsInitialized();
@@ -21,21 +21,7 @@ export default function ClientApp() {
   }
 
   if (!isSignedIn) {
-    return (
-      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
-        <div className="max-w-md mx-auto bg-[#2a2a2a] rounded-2xl border border-[#3a3a3a] p-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-[#ffffff] mb-4 font-[var(--font-climate-crisis)]">
-              Townhall Predictions
-            </h1>
-            <p className="text-[#808080] mb-8">
-              Sign in to participate in prediction markets with dynamic AMM-lite odds
-            </p>
-            <AuthButton />
-          </div>
-        </div>
-      </div>
-    );
+    return <LandingPage />;
   }
 
   return (
