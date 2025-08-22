@@ -129,7 +129,12 @@ export function MarketGrid() {
     );
   }
 
-  if (marketIds.length === 0) {
+  // Show loading if we have market IDs but no market data yet (still loading from polling service)
+  const hasMarketIds = marketIds.length > 0;
+  const hasMarketData = marketsWithData.length > 0;
+  const isLoadingMarketData = hasMarketIds && !hasMarketData;
+
+  if (marketIds.length === 0 && !loading) {
     return (
       <div className="space-y-6">
         <SearchAndFilter 
@@ -161,6 +166,31 @@ export function MarketGrid() {
               Live Board
             </a>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading animation if markets are still being loaded from polling service
+  if (isLoadingMarketData) {
+    return (
+      <div className="space-y-6">
+        <SearchAndFilter 
+          filters={filters} 
+          onFiltersChange={setFilters}
+          totalMarkets={marketIds.length}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {marketIds.map((_, i) => (
+            <div key={i} className="bg-[#2a2a2a] rounded-2xl p-6 animate-pulse border border-[#3a3a3a]">
+              <div className="h-4 bg-[#3a3a3a] rounded mb-4"></div>
+              <div className="h-32 bg-[#3a3a3a] rounded mb-4"></div>
+              <div className="flex space-x-4">
+                <div className="flex-1 h-12 bg-[#3a3a3a] rounded"></div>
+                <div className="flex-1 h-12 bg-[#3a3a3a] rounded"></div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
