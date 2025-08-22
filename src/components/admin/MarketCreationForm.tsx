@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useContract } from "@/hooks/useContract";
 
@@ -17,6 +17,7 @@ export function MarketCreationForm() {
     transactionHash?: string;
     marketId?: number;
   } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,10 +71,32 @@ export function MarketCreationForm() {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   const minDate = `${year}-${month}-${day}`;
+
+  const triggerShimmer = () => {
+    if (!buttonRef.current || (isCreating || !question || !closeDate || !closeTime)) return;
+    
+    // Add shimmer animation
+    buttonRef.current.style.animation = 'shimmer 0.6s ease-in-out';
+    
+    // Remove animation after it completes
+    setTimeout(() => {
+      if (buttonRef.current) {
+        buttonRef.current.style.animation = '';
+      }
+    }, 600);
+  };
   
   return (
-    <div className="bg-[#2a2a2a] rounded-lg shadow-lg p-6 border border-[#3a3a3a]">
-      <h2 className="text-xl text-[#ffffff] font-bold mb-4 font-[var(--font-climate-crisis)]">Create New Market</h2>
+    <>
+      <style jsx>{`
+        @keyframes shimmer {
+          0% { box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+          50% { box-shadow: 0 0 20px rgba(255, 255, 255, 0.3), 0 0 30px rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(255, 255, 255, 0.1); }
+          100% { box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+        }
+      `}</style>
+      <div className="bg-[#2a2a2a] rounded-lg shadow-lg p-6 border border-[#3a3a3a]">
+        <h2 className="text-xl text-[#ffffff] font-bold mb-4 font-[var(--font-climate-crisis)]">Create New Market</h2>
       
       {lastCreatedMarket && (
         <div className="mb-6 p-6 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg">
@@ -168,15 +191,38 @@ export function MarketCreationForm() {
         
         
         <button
+          ref={buttonRef}
           type="submit"
           disabled={isCreating || !question || !closeDate || !closeTime}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-[#3a3a3a] disabled:cursor-not-allowed text-[#ffffff] font-medium py-3 px-4 rounded-lg transition-colors"
+          className="w-full disabled:cursor-not-allowed font-bold py-3 px-4 rounded-lg transition-all border border-[0.1px]"
+          style={{
+            background: (isCreating || !question || !closeDate || !closeTime)
+              ? '#2a2a2a' 
+              : 'radial-gradient(circle, #333333 0%, #555555 100%)',
+            color: (isCreating || !question || !closeDate || !closeTime)
+              ? '#555555'
+              : '#ffffff',
+            borderColor: (isCreating || !question || !closeDate || !closeTime)
+              ? '#3a3a3a'
+              : '#808080',
+          }}
+          onMouseEnter={(e) => {
+            if (!(isCreating || !question || !closeDate || !closeTime)) {
+              e.currentTarget.style.background = 'radial-gradient(circle, #555555 0%, #777777 100%)';
+              triggerShimmer();
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!(isCreating || !question || !closeDate || !closeTime)) {
+              e.currentTarget.style.background = 'radial-gradient(circle, #333333 0%, #555555 100%)';
+            }
+          }}
         >
           {isCreating ? (
             <span className="flex items-center justify-center">
               <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
               Creating Market...
             </span>
@@ -186,5 +232,6 @@ export function MarketCreationForm() {
         </button>
       </form>
     </div>
+    </>
   );
 }

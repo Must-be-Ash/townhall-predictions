@@ -16,6 +16,7 @@
     "@coinbase/cdp-core": "^0.0.23",
     "@coinbase/cdp-hooks": "^0.0.23",
     "@coinbase/cdp-react": "^0.0.23",
+    "@coinbase/coinbase-sdk": "^0.25.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@vercel/analytics": "^1.5.0",

@@ -76,7 +76,22 @@ export function BulkWithdrawal() {
       <button
         onClick={handleWithdrawAll}
         disabled={isWithdrawing}
-        className="px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-[#ffffff] text-xs font-medium rounded-lg transition-colors"
+        className="px-3 py-1.5 disabled:bg-[#374151] disabled:cursor-not-allowed text-[#ffffff] text-xs font-bold rounded-lg transition-all border border-[#808080] border-[0.1px]"
+        style={{
+          background: isWithdrawing 
+            ? '#374151' 
+            : 'radial-gradient(circle, #333333 0%, #555555 100%)',
+        }}
+        onMouseEnter={(e) => {
+          if (!isWithdrawing) {
+            e.currentTarget.style.background = 'radial-gradient(circle, #555555 0%, #777777 100%)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isWithdrawing) {
+            e.currentTarget.style.background = 'radial-gradient(circle, #333333 0%, #555555 100%)';
+          }
+        }}
       >
         {isWithdrawing ? "Claiming..." : `Claim ${formatUSDC(userWinnings.totalWinnings)}`}
       </button>
