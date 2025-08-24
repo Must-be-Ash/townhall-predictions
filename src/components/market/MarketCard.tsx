@@ -97,25 +97,27 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
     });
   }, [marketId, isNewMarket, forceRefreshMarket]);
 
-  // Check user winnings when market is resolved and user has wallet connected
+  // Check user bet status and winnings when user has wallet connected
   useEffect(() => {
-    async function checkUserWinnings() {
-      if (!evmAddress || !market || !market.resolved) return;
+    async function checkUserStatus() {
+      if (!evmAddress || !market) return;
       
       try {
-        const [winnings, bet] = await Promise.all([
-          calculateWinnings(marketId, evmAddress),
-          getUserBet(marketId, evmAddress)
-        ]);
-        
-        setUserWinnings(winnings);
+        // Always check user bet status regardless of market state
+        const bet = await getUserBet(marketId, evmAddress);
         setUserBet(bet);
+        
+        // Only check winnings for resolved markets
+        if (market.resolved) {
+          const winnings = await calculateWinnings(marketId, evmAddress);
+          setUserWinnings(winnings);
+        }
       } catch (error) {
-        console.error("Failed to check user winnings:", error);
+        console.error("Failed to check user status:", error);
       }
     }
     
-    checkUserWinnings();
+    checkUserStatus();
   }, [evmAddress, market, marketId, calculateWinnings, getUserBet]);
 
   const handleWithdraw = async () => {
@@ -149,10 +151,18 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
   const handleBet = async (outcome: boolean) => {
     if (!evmAddress || !market || isPlacingBet) return;
     
+    // Prevent multiple betting - check if user has already placed a bet
+    // Do this check before any state changes or optimistic updates
+    if (userBet?.hasBet) {
+      alert(`You have already placed a ${userBet.outcome ? 'YES' : 'NO'} bet on this market.`);
+      return;
+    }
+    
     setIsPlacingBet(true);
     setBetFeedback({ type: 'processing', outcome, message: 'Preparing transaction...' });
     
     // Optimistic update - immediately show the effect of the bet
+    // Only apply if user hasn't already bet (double-check for safety)
     const optimisticUpdates = {
       yesCount: market.yesCount + (outcome ? 1 : 0),
       noCount: market.noCount + (outcome ? 0 : 1),
@@ -176,12 +186,25 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
       
+      // Final validation: double-check user hasn't placed a bet (in case state changed)
+      const currentUserBet = await getUserBet(marketId, evmAddress);
+      if (currentUserBet?.hasBet) {
+        throw new Error(`You have already placed a ${currentUserBet.outcome ? 'YES' : 'NO'} bet on this market.`);
+      }
+      
       // Place the bet
       setBetFeedback({ type: 'processing', outcome, message: 'Placing bet...' });
       await placeBet(marketId, outcome);
       
       // Show success immediately - trust the transaction result
       setBetFeedback({ type: 'success', outcome, message: `Bet placed successfully!` });
+      
+      // Optimistically update user bet state
+      setUserBet({
+        hasBet: true,
+        outcome,
+        withdrawn: false
+      });
       
       // Trigger background refresh for eventual confirmation (non-blocking)
       marketPollingService.forceRefresh(marketId, 2); // HIGH priority, not CRITICAL
@@ -209,8 +232,10 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
       
     } catch (error) {
       console.error("Failed to place bet:", error);
-      // Revert optimistic update on error by refreshing
+      // Revert optimistic updates on error by refreshing
       await forceRefreshMarket(marketId);
+      // Clear optimistic user bet state
+      setUserBet(null);
       setBetFeedback({ type: null });
       alert("Failed to place bet. Please try again.");
     } finally {
@@ -251,19 +276,6 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
 
   const totalPool = BigInt(market.yesTotal) + BigInt(market.noTotal);
   const totalBets = market.yesCount + market.noCount;
-  
-  // Debug: Log market data to diagnose the $0.50 issue
-  console.log(`📊 Market ${marketId} Data:`, {
-    yesTotal: market.yesTotal,
-    noTotal: market.noTotal,
-    totalPool: totalPool.toString(),
-    yesCount: market.yesCount,
-    noCount: market.noCount,
-    totalBets,
-    formattedPool: formatUSDC(totalPool),
-    resolved: market.resolved,
-    voided: market.voided
-  });
   const closeTime = new Date(market.closeTime);
   const isActive = !market.resolved && !market.voided && Date.now() < closeTime.getTime();
   
@@ -361,41 +373,54 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
       {/* Betting Buttons */}
       {isActive ? (
         <>
-          <div className="flex space-x-3">
-            <GlassButton
-              variant="green"
-              size="md"
-              onClick={() => handleBet(true)}
-              disabled={isPlacingBet}
-              className={`flex-1 ${betFeedback.type === 'success' && betFeedback.outcome === true ? 'ring-2 ring-green-400/50' : ''}`}
-            >
+          {/* Show user's existing bet if they have one */}
+          {userBet?.hasBet ? (
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-4">
               <div className="flex items-center justify-center">
-                <span className="mr-2">YES</span>
-                {yesMultiplier !== 100 && (
-                  <span className="text-xs bg-black/20 px-2 py-1 rounded-full">
-                    {(yesMultiplier / 100).toFixed(2)}x
-                  </span>
-                )}
+                <span className="text-blue-400 font-medium">
+                  You bet <span className={userBet.outcome ? 'text-green-400' : 'text-red-400'}>
+                    {userBet.outcome ? 'YES' : 'NO'}
+                  </span> on this market
+                </span>
               </div>
-            </GlassButton>
-            
-            <GlassButton
-              variant="red"
-              size="md"
-              onClick={() => handleBet(false)}
-              disabled={isPlacingBet}
-              className={`flex-1 ${betFeedback.type === 'success' && betFeedback.outcome === false ? 'ring-2 ring-green-400/50' : ''}`}
-            >
-              <div className="flex items-center justify-center">
-                <span className="mr-2">NO</span>
-                {noMultiplier !== 100 && (
-                  <span className="text-xs bg-black/20 px-2 py-1 rounded-full">
-                    {(noMultiplier / 100).toFixed(2)}x
-                  </span>
-                )}
-              </div>
-            </GlassButton>
-          </div>
+            </div>
+          ) : (
+            <div className="flex space-x-3">
+              <GlassButton
+                variant="green"
+                size="md"
+                onClick={() => handleBet(true)}
+                disabled={isPlacingBet || userBet?.hasBet}
+                className={`flex-1 ${betFeedback.type === 'success' && betFeedback.outcome === true ? 'ring-2 ring-green-400/50' : ''}`}
+              >
+                <div className="flex items-center justify-center">
+                  <span className="mr-2">YES</span>
+                  {yesMultiplier !== 100 && (
+                    <span className="text-xs bg-black/20 px-2 py-1 rounded-full">
+                      {(yesMultiplier / 100).toFixed(2)}x
+                    </span>
+                  )}
+                </div>
+              </GlassButton>
+              
+              <GlassButton
+                variant="red"
+                size="md"
+                onClick={() => handleBet(false)}
+                disabled={isPlacingBet || userBet?.hasBet}
+                className={`flex-1 ${betFeedback.type === 'success' && betFeedback.outcome === false ? 'ring-2 ring-green-400/50' : ''}`}
+              >
+                <div className="flex items-center justify-center">
+                  <span className="mr-2">NO</span>
+                  {noMultiplier !== 100 && (
+                    <span className="text-xs bg-black/20 px-2 py-1 rounded-full">
+                      {(noMultiplier / 100).toFixed(2)}x
+                    </span>
+                  )}
+                </div>
+              </GlassButton>
+            </div>
+          )}
           
           {/* Bet feedback message */}
           {betFeedback.type && betFeedback.message && (
@@ -463,7 +488,16 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
         <div className="mt-4 pt-4 border-t border-gray-700">
           <Link 
             href={`/market/${marketId}`}
-            className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+            className="inline-block px-3 py-1.5 text-[#ffffff] text-xs font-bold rounded-lg transition-all border border-[#808080] border-[0.1px]"
+            style={{
+              background: 'radial-gradient(circle, #333333 0%, #555555 100%)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'radial-gradient(circle, #555555 0%, #777777 100%)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'radial-gradient(circle, #333333 0%, #555555 100%)';
+            }}
           >
             View details →
           </Link>

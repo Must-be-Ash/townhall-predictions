@@ -174,22 +174,6 @@ export function useContract() {
     };
   }, [marketContract]);
   
-  const getUserBet = useCallback(async (marketId: number, userAddress: string) => {
-    const bet = await publicClient.readContract({
-      address: marketContract,
-      abi: TOWN_HALL_PREDICTIONS_ABI,
-      functionName: "userBets",
-      args: [BigInt(marketId), userAddress as `0x${string}`],
-    });
-    
-    // userBets returns: [hasBet, outcome, withdrawn]
-    return {
-      hasBet: bet[0],
-      outcome: bet[1],
-      withdrawn: bet[2],
-    };
-  }, [marketContract]);
-  
   const calculateWinnings = useCallback(async (marketId: number, userAddress: string) => {
     const winnings = await publicClient.readContract({
       address: marketContract,
@@ -279,6 +263,27 @@ export function useContract() {
     // This would require listening to BetPlaced events or having an on-chain participant registry
     return [];
   }, []);
+
+  const getUserBet = useCallback(async (marketId: number, userAddress: string) => {
+    try {
+      const result = await publicClient.readContract({
+        address: marketContract,
+        abi: TOWN_HALL_PREDICTIONS_ABI,
+        functionName: 'userBets',
+        args: [BigInt(marketId), userAddress as `0x${string}`]
+      });
+      
+      // Return the UserBet struct: (hasBet, outcome, withdrawn)
+      return {
+        hasBet: result[0] as boolean,
+        outcome: result[1] as boolean,
+        withdrawn: result[2] as boolean
+      };
+    } catch (error) {
+      console.error("Failed to get user bet:", error);
+      return { hasBet: false, outcome: false, withdrawn: false };
+    }
+  }, [marketContract]);
 
   const getAllUserWinnings = useCallback(async (userAddress: string) => {
     if (!userAddress) return { markets: [], totalWinnings: 0n };
@@ -421,6 +426,7 @@ export function useContract() {
     console.log("Withdraw transaction sent, result:", result);
     return result;
   }, [evmAddress, sendTransactionWithRetry, marketContract]);
+
 
   const isDeadPoolMarket = useCallback(async (marketId: number): Promise<boolean> => {
     try {

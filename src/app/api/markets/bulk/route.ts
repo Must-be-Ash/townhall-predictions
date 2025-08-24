@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const marketIds = idsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id) && id >= 1);
+    const marketIds = idsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id) && id >= 0);
     
     if (marketIds.length === 0) {
       return NextResponse.json(

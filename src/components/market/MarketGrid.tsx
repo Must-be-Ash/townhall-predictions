@@ -46,8 +46,8 @@ export function MarketGrid() {
           return;
         }
 
-        // Create array of market IDs (markets start from ID 1)
-        const ids = Array.from({ length: marketCount }, (_, i) => i + 1);
+        // Create array of market IDs (markets start from ID 0)
+        const ids = Array.from({ length: marketCount }, (_, i) => i);
         setMarketIds(ids);
       } catch (error) {
         console.error("Failed to load market count:", error);

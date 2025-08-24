@@ -20,7 +20,11 @@ function SignOutButton() {
   );
 }
 
-export function DesktopDock() {
+interface DesktopDockProps {
+  onInfoClick: () => void;
+}
+
+export function DesktopDock({ onInfoClick }: DesktopDockProps) {
   const pathname = usePathname();
 
   const isActive = (path: string) => {
@@ -63,6 +67,17 @@ export function DesktopDock() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
           </Link>
+
+          {/* Info */}
+          <button
+            onClick={onInfoClick}
+            className="flex items-center justify-center p-3 rounded-xl transition-all duration-200 hover:bg-white/10 text-[#c0c0c0] hover:text-[#ffffff]"
+            title="How it works"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
 
           {/* Divider */}
           <div className="w-px h-6 bg-[#3a3a3a]"></div>

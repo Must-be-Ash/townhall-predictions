@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import { DesktopDock } from "./DesktopDock";
 import { MobileDock } from "./MobileDock";
+import { InfoModal } from "@/components/ui/InfoModal";
 
 export function DockNavigation() {
   const [isMobile, setIsMobile] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   useEffect(() => {
     const checkDevice = () => {
@@ -26,9 +28,21 @@ export function DockNavigation() {
     setMounted(true);
   }, []);
 
+  const openInfoModal = () => setIsInfoModalOpen(true);
+  const closeInfoModal = () => setIsInfoModalOpen(false);
+
   if (!mounted) {
     return null;
   }
 
-  return isMobile ? <MobileDock /> : <DesktopDock />;
+  return (
+    <>
+      {isMobile ? (
+        <MobileDock onInfoClick={openInfoModal} />
+      ) : (
+        <DesktopDock onInfoClick={openInfoModal} />
+      )}
+      <InfoModal isOpen={isInfoModalOpen} onClose={closeInfoModal} />
+    </>
+  );
 }

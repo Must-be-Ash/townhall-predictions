@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useContract } from "@/hooks/useContract";
 
 export function MarketCreationForm() {
-  const { createMarket, getMarketCounter } = useContract();
+  const { createMarket, getMarketCounter, getMarket } = useContract();
   const router = useRouter();
   
   const [question, setQuestion] = useState("");
@@ -37,24 +37,54 @@ export function MarketCreationForm() {
         return;
       }
       
-      const result = await createMarket(question, closeTimestamp);
-      
-      // Get the current market counter to determine the ID of the market we just created
+      // Get the current market counter BEFORE creating the market
+      // This will be the ID assigned to the new market (contract does marketId = marketCounter++)
       const marketCounter = await getMarketCounter();
       const marketId = Number(marketCounter);
+      
+      const result = await createMarket(question, closeTimestamp);
+      
+      // Extract transaction hash from result
+      const transactionHash = result?.transactionHash;
+      
+      // Validate market exists before showing success UI
+      // Add retry mechanism for blockchain data propagation delays
+      let marketExists = false;
+      let attempts = 0;
+      const maxAttempts = 5;
+      
+      while (!marketExists && attempts < maxAttempts) {
+        try {
+          const marketData = await getMarket(marketId);
+          if (marketData && marketData.question === question) {
+            marketExists = true;
+            break;
+          }
+        } catch (error) {
+          console.warn(`Market validation attempt ${attempts + 1} failed:`, error);
+        }
+        
+        attempts++;
+        if (attempts < maxAttempts) {
+          // Wait 1 second before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      if (!marketExists) {
+        console.warn(`Market ${marketId} validation failed after ${maxAttempts} attempts`);
+        // Still show success but with a warning
+      }
       
       // Reset form
       setQuestion("");
       setCloseDate("");
       setCloseTime("");
       
-      // Extract transaction hash from result
-      const transactionHash = result?.transactionHash;
-      
       setLastCreatedMarket({
         question,
         transactionHash,
-        marketId,
+        marketId: marketExists ? marketId : undefined, // Only set ID if validation passed
       });
       console.log("Market created successfully:", result);
     } catch (error) {
@@ -124,13 +154,20 @@ export function MarketCreationForm() {
                 </div>
               )}
               
-              {lastCreatedMarket.marketId && (
+              {lastCreatedMarket.marketId ? (
                 <button
                   onClick={() => router.push(`/market/${lastCreatedMarket.marketId}?new=true`)}
                   className="px-4 py-2 bg-[#3a3a3a] hover:bg-[#4a4a4a] text-[#ffffff] font-medium rounded-lg transition-colors border border-[#4a4a4a]"
                 >
                   View Market →
                 </button>
+              ) : (
+                <div className="p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+                  <p className="text-yellow-400 text-sm">
+                    Market created successfully, but data is still propagating on the blockchain. 
+                    Please check the markets list in a few moments.
+                  </p>
+                </div>
               )}
             </div>
           </div>

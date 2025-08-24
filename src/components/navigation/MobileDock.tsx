@@ -20,7 +20,11 @@ function SignOutButton() {
   );
 }
 
-export function MobileDock() {
+interface MobileDockProps {
+  onInfoClick: () => void;
+}
+
+export function MobileDock({ onInfoClick }: MobileDockProps) {
   const pathname = usePathname();
 
   const isActive = (path: string) => {
@@ -65,6 +69,17 @@ export function MobileDock() {
             </svg>
             <span className="text-xs font-medium">Create</span>
           </Link>
+
+          {/* Info */}
+          <button
+            onClick={onInfoClick}
+            className="flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-200 min-w-[48px] text-[#c0c0c0] hover:text-[#ffffff] hover:bg-[#3a3a3a]"
+          >
+            <svg className="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-xs font-medium">Info</span>
+          </button>
 
           {/* Sign Out */}
           <SignOutButton />
