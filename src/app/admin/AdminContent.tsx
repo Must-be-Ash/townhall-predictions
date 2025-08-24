@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useIsInitialized, useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
-import { AuthButton } from "@coinbase/cdp-react/components/AuthButton";
+import { useEvmAddress } from "@coinbase/cdp-hooks";
 import { MarketCreationForm } from "@/components/admin/MarketCreationForm";
 import { BulkWithdrawal } from "@/components/admin/BulkWithdrawal";
 import { DeadPoolWithdrawal } from "@/components/admin/DeadPoolWithdrawal";
@@ -14,8 +13,6 @@ import { baseSepolia } from "viem/chains";
 import { getContractAddress } from "@/lib/constants";
 
 export default function AdminContent() {
-  const { isInitialized } = useIsInitialized();
-  const { isSignedIn } = useIsSignedIn();
   const { evmAddress } = useEvmAddress();
   const [addressCopied, setAddressCopied] = useState(false);
   const [usdcBalance, setUsdcBalance] = useState<string | null>(null);
@@ -101,34 +98,8 @@ export default function AdminContent() {
     }
   };
 
-  if (!isInitialized) {
-    return (
-      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-[#808080]">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isSignedIn) {
-    return (
-      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
-        <div className="max-w-md mx-auto bg-[#2a2a2a] rounded-2xl border border-[#3a3a3a] p-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-[#ffffff] mb-4 font-[var(--font-climate-crisis)]">
-              Admin Panel
-            </h1>
-            <p className="text-[#808080] mb-8">
-              Sign in to access the admin dashboard
-            </p>
-            <AuthButton />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Note: Authentication is now handled by ProtectedRoute wrapper
+  // No need for separate login screens - users will be redirected to main page if not authenticated
 
   return (
     <div className="min-h-screen bg-[#1a1a1a]">

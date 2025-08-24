@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Climate_Crisis } from "next/font/google";
 import { Analytics } from '@vercel/analytics/react';
+import { RootProviders } from "@/components/providers/RootProviders";
 import "./globals.css";
 
 const inter = Inter({
@@ -71,7 +72,9 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" />
       </head>
       <body className={`${inter.variable} ${climateCrisis.variable} font-sans antialiased`}>
-        {children}
+        <RootProviders>
+          {children}
+        </RootProviders>
         <Analytics />
       </body>
     </html>
