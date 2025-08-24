@@ -13,7 +13,7 @@ const publicClient = createPublicClient({
 
 const ALLOWED_ORIGINS = [
   'https://www.townhall.lol',
-  'http://localhost:3000',
+  process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
   'http://localhost:3001', // backup dev port
 ];
 

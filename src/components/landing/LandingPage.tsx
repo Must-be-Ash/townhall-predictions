@@ -13,7 +13,7 @@ export function LandingPage() {
     <div className="min-h-screen bg-[#1a1a1a] flex flex-col items-center justify-between px-4 py-8">
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center">
-        <div className="max-w-md w-full text-center space-y-8">
+        <div className="max-w-md w-full text-center space-y-4">
           {/* Logo */}
           <div className="flex justify-center">
             <Image
@@ -27,10 +27,10 @@ export function LandingPage() {
           </div>
           
           {/* Hero Title */}
-          <h1 className="text-3xl md:text-2xl font-bold text-[#ffffff] leading-tight">
-            Friendly match of prediction market
+          <h1 className="text-3xl md:text-2xl font-bold text-[#ffffff] leading-tight mt-2">
+            Townhall <br/> Predictions
           </h1>
-          <p className="text-[#808080]">
+          <p className="text-[#808080] mb-12">
           prediction market fun without the risks
           </p>
           {/* Login Button */}

@@ -129,6 +129,10 @@ Required environment variables:
 # CDP Configuration
 NEXT_PUBLIC_CDP_PROJECT_ID=your_cdp_project_id
 
+# Application URLs
+NEXT_PUBLIC_BASE_URL=https://www.townhall.lol  # Production URL
+# NEXT_PUBLIC_BASE_URL=http://localhost:3000   # Development override in .env.local
+
 # Database
 MONGODB_URI=mongodb://localhost:27017/townhall-predictions
 
@@ -140,6 +144,8 @@ PRIVATE_KEY=admin_wallet_private_key
 BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
 ETHERSCAN_API_KEY=your_etherscan_api_key
 ```
+
+**Important**: The `NEXT_PUBLIC_BASE_URL` is used for CDP provider configuration and other absolute URL references. Set this to your production domain in `.env` and optionally override with localhost in `.env.local` for development.
 
 ## Contract Addresses
 

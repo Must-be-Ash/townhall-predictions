@@ -3,6 +3,7 @@
 import { CDPReactProvider, type AppConfig, type Theme } from "@coinbase/cdp-react";
 import { type Config } from "@coinbase/cdp-core";
 import { MarketProvider } from "@/contexts/MarketContext";
+import { getAbsoluteUrl } from "@/lib/config";
 
 const CDP_CONFIG: Config = {
   projectId: process.env.NEXT_PUBLIC_CDP_PROJECT_ID ?? "",
@@ -10,7 +11,7 @@ const CDP_CONFIG: Config = {
 
 const APP_CONFIG: AppConfig = {
   name: "Townhall Predictions",
-  logoUrl: "http://localhost:3000/logo.svg", // Use full URL as shown in docs
+  logoUrl: getAbsoluteUrl("/w-text.svg"), // Use environment-aware absolute URL
 };
 
 const THEME: Partial<Theme> = {
