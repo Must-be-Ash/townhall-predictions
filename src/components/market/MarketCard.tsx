@@ -40,6 +40,7 @@ interface MarketCardProps {
 function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = false }: MarketCardProps) {
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [userWinnings, setUserWinnings] = useState<bigint>(0n);
   const [userBet, setUserBet] = useState<{
     hasBet: boolean;
@@ -240,6 +241,19 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
       alert("Failed to place bet. Please try again.");
     } finally {
       setIsPlacingBet(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      await forceRefreshMarket(marketId);
+    } catch (error) {
+      console.error("Failed to refresh market:", error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -485,7 +499,7 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
 
       {/* View Details Link */}
       {!hideDetailsLink && (
-        <div className="mt-4 pt-4 border-t border-gray-700">
+        <div className="mt-4 pt-4 border-t border-gray-700 flex justify-between items-center">
           <Link 
             href={`/market/${marketId}`}
             className="inline-block px-3 py-1.5 text-[#ffffff] text-xs font-bold rounded-lg transition-all border border-[#808080] border-[0.1px]"
@@ -501,6 +515,28 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
           >
             View details →
           </Link>
+          
+          {/* Refresh Button */}
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="text-[#808080] hover:text-[#ffffff] disabled:opacity-50 transition-colors p-1"
+            title="Refresh market data"
+          >
+            <svg 
+              className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+              />
+            </svg>
+          </button>
         </div>
       )}
     </div>
