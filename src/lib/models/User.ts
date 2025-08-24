@@ -9,6 +9,9 @@ export interface IUser {
   lastActive: Date;
   totalBets: number;
   totalWinnings: string; // In USDC (as string to avoid precision issues)
+  autoFundingStatus?: 'pending' | 'completed' | 'failed' | 'skipped';
+  autoFundingAttempts?: number;
+  lastFundingAttempt?: Date;
 }
 
 const UserSchema = new mongoose.Schema<IUser>({
@@ -49,11 +52,23 @@ const UserSchema = new mongoose.Schema<IUser>({
     type: String, 
     default: "0" 
   },
+  autoFundingStatus: {
+    type: String,
+    enum: ['pending', 'completed', 'failed', 'skipped'],
+    default: undefined
+  },
+  autoFundingAttempts: {
+    type: Number,
+    default: 0
+  },
+  lastFundingAttempt: {
+    type: Date,
+    default: undefined
+  },
 });
 
 // Create indexes for better query performance
-UserSchema.index({ email: 1 });
-UserSchema.index({ evmAddress: 1 });
+// Note: email and evmAddress indexes are automatically created by unique: true
 UserSchema.index({ isAdmin: 1 });
 
 export const User = mongoose.models.User || mongoose.model<IUser>("User", UserSchema);

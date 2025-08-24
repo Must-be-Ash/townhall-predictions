@@ -9,7 +9,10 @@ import { TOWN_HALL_PREDICTIONS_ABI, USDC_ABI } from "@/lib/abis";
 
 const publicClient = createPublicClient({
   chain: baseSepolia,
-  transport: http(),
+  transport: http(`https://base-sepolia.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`, {
+    retryCount: 3,
+    retryDelay: 1000,
+  }),
 });
 
 export function useContract() {
@@ -19,6 +22,40 @@ export function useContract() {
   const marketContract = CONTRACT_ADDRESSES.TOWN_HALL_PREDICTIONS[84532] as `0x${string}`;
   const usdcContract = CONTRACT_ADDRESSES.USDC[84532] as `0x${string}`;
   
+  // Helper function to retry contract calls with exponential backoff for rate limits
+  const retryContractCall = useCallback(async <T>(
+    contractCall: () => Promise<T>,
+    maxAttempts: number = 3
+  ): Promise<T> => {
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      try {
+        return await contractCall();
+      } catch (error: unknown) {
+        attempts++;
+        
+        // Check if it's a rate limit error
+        if (error instanceof Error && 
+            (error.message.includes('over rate limit') || 
+             error.message.includes('429') ||
+             error.message.includes('rate limit'))) {
+          
+          if (attempts < maxAttempts) {
+            const delay = Math.pow(2, attempts) * 1000; // Exponential backoff: 2s, 4s, 8s
+            console.log(`Rate limit hit, retrying in ${delay}ms... (attempt ${attempts}/${maxAttempts})`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+        }
+        
+        // If not a rate limit error or max attempts reached, throw the error
+        throw error;
+      }
+    }
+    
+    throw new Error(`Max retry attempts (${maxAttempts}) exceeded`);
+  }, []);
   
   // Helper function to handle nonce retry logic
   const sendTransactionWithRetry = useCallback(async (transactionParams: {
@@ -150,12 +187,14 @@ export function useContract() {
   }, [usdcContract, marketContract]);
   
   const getMarket = useCallback(async (marketId: number) => {
-    const market = await publicClient.readContract({
-      address: marketContract,
-      abi: TOWN_HALL_PREDICTIONS_ABI,
-      functionName: "markets",
-      args: [BigInt(marketId)],
-    });
+    const market = await retryContractCall(() => 
+      publicClient.readContract({
+        address: marketContract,
+        abi: TOWN_HALL_PREDICTIONS_ABI,
+        functionName: "markets",
+        args: [BigInt(marketId)],
+      })
+    );
     
     // markets returns: [question, closeTime, resolved, winningOutcome, yesTotal, noTotal, yesCount, noCount, voided, createdAt, creator]
     // Convert to object format
@@ -172,18 +211,20 @@ export function useContract() {
       createdAt: market[9],
       creator: market[10],
     };
-  }, [marketContract]);
+  }, [marketContract, retryContractCall]);
   
   const calculateWinnings = useCallback(async (marketId: number, userAddress: string) => {
-    const winnings = await publicClient.readContract({
-      address: marketContract,
-      abi: TOWN_HALL_PREDICTIONS_ABI,
-      functionName: "calculateWinnings",
-      args: [BigInt(marketId), userAddress as `0x${string}`],
-    });
+    const winnings = await retryContractCall(() =>
+      publicClient.readContract({
+        address: marketContract,
+        abi: TOWN_HALL_PREDICTIONS_ABI,
+        functionName: "calculateWinnings",
+        args: [BigInt(marketId), userAddress as `0x${string}`],
+      })
+    );
     
     return winnings as bigint;
-  }, [marketContract]);
+  }, [marketContract, retryContractCall]);
   
   const getMarketCounter = useCallback(async () => {
     const counter = await publicClient.readContract({
@@ -266,12 +307,14 @@ export function useContract() {
 
   const getUserBet = useCallback(async (marketId: number, userAddress: string) => {
     try {
-      const result = await publicClient.readContract({
-        address: marketContract,
-        abi: TOWN_HALL_PREDICTIONS_ABI,
-        functionName: 'userBets',
-        args: [BigInt(marketId), userAddress as `0x${string}`]
-      });
+      const result = await retryContractCall(() =>
+        publicClient.readContract({
+          address: marketContract,
+          abi: TOWN_HALL_PREDICTIONS_ABI,
+          functionName: 'userBets',
+          args: [BigInt(marketId), userAddress as `0x${string}`]
+        })
+      );
       
       // Return the UserBet struct: (hasBet, outcome, withdrawn)
       return {
@@ -283,7 +326,7 @@ export function useContract() {
       console.error("Failed to get user bet:", error);
       return { hasBet: false, outcome: false, withdrawn: false };
     }
-  }, [marketContract]);
+  }, [marketContract, retryContractCall]);
 
   const getAllUserWinnings = useCallback(async (userAddress: string) => {
     if (!userAddress) return { markets: [], totalWinnings: 0n };
@@ -427,6 +470,34 @@ export function useContract() {
     return result;
   }, [evmAddress, sendTransactionWithRetry, marketContract]);
 
+  const withdrawRefund = useCallback(async (marketId: number) => {
+    if (!evmAddress) {
+      throw new Error("Wallet not connected");
+    }
+    console.log("Encoding refund transaction data...");
+    console.log("Market ID:", marketId);
+    console.log("Contract address:", marketContract);
+    const data = encodeFunctionData({
+      abi: TOWN_HALL_PREDICTIONS_ABI,
+      functionName: "withdrawRefund",
+      args: [BigInt(marketId)],
+    });
+    console.log("Sending refund transaction...");
+    const result = await sendTransactionWithRetry({
+      transaction: {
+        to: marketContract,
+        data,
+        gas: 300000n,
+        chainId: 84532,
+        type: "eip1559",
+      },
+      evmAccount: evmAddress as `0x${string}`,
+      network: "base-sepolia",
+    });
+    console.log("Refund transaction sent, result:", result);
+    return result;
+  }, [evmAddress, sendTransactionWithRetry, marketContract]);
+
 
   const isDeadPoolMarket = useCallback(async (marketId: number): Promise<boolean> => {
     try {
@@ -445,18 +516,20 @@ export function useContract() {
 
   const deadPoolClaimed = useCallback(async (marketId: number): Promise<boolean> => {
     try {
-      const result = await publicClient.readContract({
-        address: marketContract,
-        abi: TOWN_HALL_PREDICTIONS_ABI,
-        functionName: 'deadPoolClaimed',
-        args: [BigInt(marketId)]
-      });
+      const result = await retryContractCall(() =>
+        publicClient.readContract({
+          address: marketContract,
+          abi: TOWN_HALL_PREDICTIONS_ABI,
+          functionName: 'deadPoolClaimed',
+          args: [BigInt(marketId)]
+        })
+      );
       return result as boolean;
     } catch (error) {
       console.error("Failed to check if dead pool funds claimed:", error);
       return false;
     }
-  }, [marketContract]);
+  }, [marketContract, retryContractCall]);
 
   const getAllDeadPoolFunds = useCallback(async () => {
     try {
@@ -557,6 +630,7 @@ export function useContract() {
     resolveMarket,
     voidMarket,
     withdrawWinnings,
+    withdrawRefund,
     BET_AMOUNT,
   };
 }

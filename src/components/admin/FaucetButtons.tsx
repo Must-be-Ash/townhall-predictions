@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useEvmAddress } from "@coinbase/cdp-hooks";
+import { useContract } from "@/hooks/useContract";
 
 interface FaucetResponse {
   success: boolean;
@@ -14,10 +15,34 @@ interface FaucetResponse {
 
 export function FaucetButtons() {
   const { evmAddress } = useEvmAddress();
+  const { getContractOwner } = useContract();
   const [isRequestingETH, setIsRequestingETH] = useState(false);
   const [isRequestingUSDC, setIsRequestingUSDC] = useState(false);
+  const [isRequestingTopUp, setIsRequestingTopUp] = useState(false);
   const [lastETHResponse, setLastETHResponse] = useState<FaucetResponse | null>(null);
   const [lastUSDCResponse, setLastUSDCResponse] = useState<FaucetResponse | null>(null);
+  const [lastTopUpResponse, setLastTopUpResponse] = useState<FaucetResponse | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+
+  // Check if current user is contract owner (admin)
+  useEffect(() => {
+    async function checkOwner() {
+      if (!evmAddress) {
+        setIsOwner(false);
+        return;
+      }
+
+      try {
+        const owner = await getContractOwner();
+        setIsOwner(owner.toLowerCase() === evmAddress.toLowerCase());
+      } catch (error) {
+        console.error('Failed to check contract owner:', error);
+        setIsOwner(false);
+      }
+    }
+
+    checkOwner();
+  }, [evmAddress, getContractOwner]);
 
   const requestETH = async () => {
     if (!evmAddress || isRequestingETH) return;
@@ -85,6 +110,38 @@ export function FaucetButtons() {
     }
   };
 
+  const requestTopUp = async () => {
+    if (!evmAddress || isRequestingTopUp || !isOwner) return;
+
+    setIsRequestingTopUp(true);
+    setLastTopUpResponse(null);
+
+    try {
+      const response = await fetch('/api/admin/trigger-circle-refill', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data: FaucetResponse = await response.json();
+      setLastTopUpResponse(data);
+
+      if (data.success) {
+        // Show success message briefly
+        setTimeout(() => setLastTopUpResponse(null), 5000);
+      }
+    } catch (error) {
+      console.error('Circle top-up request failed:', error);
+      setLastTopUpResponse({
+        success: false,
+        error: 'Network error occurred'
+      });
+    } finally {
+      setIsRequestingTopUp(false);
+    }
+  };
+
   if (!evmAddress) {
     return null;
   }
@@ -145,6 +202,35 @@ export function FaucetButtons() {
         </button>
       </div>
 
+      {/* Circle Top Up - Admin Only */}
+      {isOwner && (
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-[#808080]">Circle top up:</span>
+          <button
+            onClick={requestTopUp}
+            disabled={isRequestingTopUp}
+            className="px-3 py-1.5 disabled:bg-[#374151] disabled:cursor-not-allowed text-[#ffffff] text-xs font-bold rounded-lg transition-all border border-[#808080] border-[0.1px]"
+            style={{
+              background: isRequestingTopUp 
+                ? '#374151' 
+                : 'radial-gradient(circle, #333333 0%, #555555 100%)',
+            }}
+            onMouseEnter={(e) => {
+              if (!isRequestingTopUp) {
+                e.currentTarget.style.background = 'radial-gradient(circle, #555555 0%, #777777 100%)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isRequestingTopUp) {
+                e.currentTarget.style.background = 'radial-gradient(circle, #333333 0%, #555555 100%)';
+              }
+            }}
+          >
+            {isRequestingTopUp ? "Topping up..." : "Top Up"}
+          </button>
+        </div>
+      )}
+
       {/* Success Messages */}
       {lastETHResponse?.success && (
         <div className="p-2 bg-green-900/20 border border-green-500/30 rounded-lg">
@@ -182,6 +268,14 @@ export function FaucetButtons() {
         </div>
       )}
 
+      {lastTopUpResponse?.success && (
+        <div className="p-2 bg-green-900/20 border border-green-500/30 rounded-lg">
+          <div className="text-xs text-green-400">
+            ✓ Circle top-up requested! Check logs for details.
+          </div>
+        </div>
+      )}
+
       {/* Error Messages */}
       {lastETHResponse?.error && (
         <div className="p-2 bg-red-900/20 border border-red-500/30 rounded-lg">
@@ -195,6 +289,14 @@ export function FaucetButtons() {
         <div className="p-2 bg-red-900/20 border border-red-500/30 rounded-lg">
           <div className="text-xs text-red-400">
             ✗ USDC request failed: {lastUSDCResponse.error}
+          </div>
+        </div>
+      )}
+
+      {lastTopUpResponse?.error && (
+        <div className="p-2 bg-red-900/20 border border-red-500/30 rounded-lg">
+          <div className="text-xs text-red-400">
+            ✗ Circle top-up failed: {lastTopUpResponse.error}
           </div>
         </div>
       )}

@@ -7,6 +7,7 @@ import { MarketCreationForm } from "@/components/admin/MarketCreationForm";
 import { BulkWithdrawal } from "@/components/admin/BulkWithdrawal";
 import { DeadPoolWithdrawal } from "@/components/admin/DeadPoolWithdrawal";
 import { FaucetButtons } from "@/components/admin/FaucetButtons";
+import { ClaimButton } from "@/components/admin/ClaimButton";
 import { DockNavigation } from "@/components/navigation/DockNavigation";
 import { createPublicClient, http, formatUnits } from "viem";
 import { baseSepolia } from "viem/chains";
@@ -18,6 +19,7 @@ export default function AdminContent() {
   const { evmAddress } = useEvmAddress();
   const [addressCopied, setAddressCopied] = useState(false);
   const [usdcBalance, setUsdcBalance] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const publicClient = createPublicClient({
     chain: baseSepolia,
@@ -134,6 +136,7 @@ export default function AdminContent() {
                 {usdcBalance ? `${parseFloat(usdcBalance).toFixed(2)} USDC` : 'Loading...'}
               </span>
             </div>
+            <ClaimButton />
             <BulkWithdrawal />
             <DeadPoolWithdrawal />
             <FaucetButtons />

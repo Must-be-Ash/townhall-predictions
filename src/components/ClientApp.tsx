@@ -4,6 +4,7 @@ import { useIsInitialized, useIsSignedIn } from "@coinbase/cdp-hooks";
 import { MarketGrid } from "./market/MarketGrid";
 import { DockNavigation } from "./navigation/DockNavigation";
 import { LandingPage } from "./landing/LandingPage";
+import { SilentAutoFunding } from "./auth/SilentAutoFunding";
 
 export default function ClientApp() {
   const { isInitialized } = useIsInitialized();
@@ -26,6 +27,9 @@ export default function ClientApp() {
 
   return (
     <div className="min-h-screen bg-[#1a1a1a]">
+      {/* Silent auto-funding - runs in background */}
+      <SilentAutoFunding />
+      
       {/* Dock Navigation */}
       <DockNavigation />
 

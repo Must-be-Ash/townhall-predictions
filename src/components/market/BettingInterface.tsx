@@ -40,6 +40,7 @@ export function BettingInterface({ marketId }: BettingInterfaceProps) {
     getUSDCBalance,
     getPayoutMultiplier,
     getDynamicCap,
+    withdrawRefund,
     BET_AMOUNT 
   } = useContract();
   
@@ -52,6 +53,7 @@ export function BettingInterface({ marketId }: BettingInterfaceProps) {
   const [noCap, setNoCap] = useState<bigint>(50n);
   const [isLoading, setIsLoading] = useState(true);
   const [isPlacingBet, setIsPlacingBet] = useState(false);
+  const [isClaimingRefund, setIsClaimingRefund] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   
@@ -150,6 +152,25 @@ export function BettingInterface({ marketId }: BettingInterfaceProps) {
     } finally {
       setIsPlacingBet(false);
       setSelectedOutcome(null);
+    }
+  };
+
+  const handleClaimRefund = async () => {
+    if (!evmAddress || !market?.voided || !userBet?.hasBet || userBet?.withdrawn) return;
+    
+    setIsClaimingRefund(true);
+    setError(null);
+    
+    try {
+      await withdrawRefund(marketId);
+      // Refresh user bet data to show refund was claimed
+      const updatedUserBet = await getUserBet(marketId, evmAddress);
+      setUserBet(updatedUserBet);
+    } catch (err) {
+      console.error("Failed to claim refund:", err);
+      setError(err instanceof Error ? err.message : "Failed to claim refund");
+    } finally {
+      setIsClaimingRefund(false);
     }
   };
   
@@ -385,9 +406,26 @@ export function BettingInterface({ marketId }: BettingInterfaceProps) {
         
         {market.voided && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-center text-yellow-800 font-medium">
-              Market Voided - All bets refunded
+            <p className="text-center text-yellow-800 font-medium mb-4">
+              Market Voided
             </p>
+            {userBet?.hasBet && !userBet.withdrawn ? (
+              <button
+                onClick={handleClaimRefund}
+                disabled={isClaimingRefund}
+                className="w-full bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-lg transition-colors"
+              >
+                {isClaimingRefund ? "Claiming Refund..." : "Claim Your $1.00 USDC Refund"}
+              </button>
+            ) : userBet?.withdrawn ? (
+              <p className="text-center text-yellow-700">
+                ✓ Refund already claimed
+              </p>
+            ) : (
+              <p className="text-center text-yellow-700">
+                No bet to refund
+              </p>
+            )}
           </div>
         )}
         
