@@ -421,6 +421,111 @@ export function useContract() {
     console.log("Withdraw transaction sent, result:", result);
     return result;
   }, [evmAddress, sendTransactionWithRetry, marketContract]);
+
+  const isDeadPoolMarket = useCallback(async (marketId: number): Promise<boolean> => {
+    try {
+      const result = await publicClient.readContract({
+        address: marketContract,
+        abi: TOWN_HALL_PREDICTIONS_ABI,
+        functionName: 'isDeadPoolMarket',
+        args: [BigInt(marketId)]
+      });
+      return result as boolean;
+    } catch (error) {
+      console.error("Failed to check if market is dead pool:", error);
+      return false;
+    }
+  }, [marketContract]);
+
+  const deadPoolClaimed = useCallback(async (marketId: number): Promise<boolean> => {
+    try {
+      const result = await publicClient.readContract({
+        address: marketContract,
+        abi: TOWN_HALL_PREDICTIONS_ABI,
+        functionName: 'deadPoolClaimed',
+        args: [BigInt(marketId)]
+      });
+      return result as boolean;
+    } catch (error) {
+      console.error("Failed to check if dead pool funds claimed:", error);
+      return false;
+    }
+  }, [marketContract]);
+
+  const getAllDeadPoolFunds = useCallback(async () => {
+    try {
+      // Get the total number of markets
+      const marketCount = await getMarketCounter();
+      const marketCountNumber = Number(marketCount);
+      
+      const deadPoolMarkets = [];
+      let totalDeadPoolFunds = 0n;
+
+      // Check each market for dead pool funds
+      for (let i = 1; i <= marketCountNumber; i++) {
+        try {
+          const [market, isDeadPool, isClaimed] = await Promise.all([
+            getMarket(i),
+            isDeadPoolMarket(i),
+            deadPoolClaimed(i)
+          ]);
+
+          // Only include markets that are dead pools and haven't been claimed
+          if (isDeadPool && !isClaimed) {
+            const totalPool = market.yesTotal + market.noTotal;
+            if (totalPool > 0n) {
+              deadPoolMarkets.push({
+                marketId: i,
+                question: market.question,
+                amount: totalPool,
+                winningOutcome: market.winningOutcome
+              });
+              totalDeadPoolFunds += totalPool;
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to check dead pool for market ${i}:`, error);
+        }
+      }
+
+      return {
+        markets: deadPoolMarkets,
+        totalAmount: totalDeadPoolFunds
+      };
+    } catch (error) {
+      console.error("Failed to get all dead pool funds:", error);
+      return { markets: [], totalAmount: 0n };
+    }
+  }, [getMarketCounter, getMarket, isDeadPoolMarket, deadPoolClaimed]);
+
+  const claimDeadPoolFunds = useCallback(async (marketId: number) => {
+    if (!evmAddress) {
+      throw new Error("No wallet connected");
+    }
+
+    console.log("Claiming dead pool funds for market:", marketId);
+
+    const data = encodeFunctionData({
+      abi: TOWN_HALL_PREDICTIONS_ABI,
+      functionName: 'claimDeadPoolFunds',
+      args: [BigInt(marketId)]
+    });
+
+    const result = await sendTransactionWithRetry({
+      transaction: {
+        to: marketContract,
+        data,
+        gas: 200000n,
+        chainId: 84532,
+        type: "eip1559",
+      },
+      evmAccount: evmAddress as `0x${string}`,
+      network: "base-sepolia",
+    });
+
+    console.log("Claim dead pool funds transaction sent, result:", result);
+    return result;
+  }, [evmAddress, sendTransactionWithRetry, marketContract]);
   
   return {
     createMarket,
@@ -439,6 +544,10 @@ export function useContract() {
     getMultiplierBase,
     getMarketParticipants,
     getAllUserWinnings,
+    getAllDeadPoolFunds,
+    isDeadPoolMarket,
+    deadPoolClaimed,
+    claimDeadPoolFunds,
     resolveMarket,
     voidMarket,
     withdrawWinnings,

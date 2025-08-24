@@ -52,7 +52,7 @@ export const CONTRACT_ADDRESSES = {
   },
   TOWN_HALL_PREDICTIONS: {
     // Base Sepolia testnet - deployed address
-    84532: process.env.NEXT_PUBLIC_PREDICTIONS_CONTRACT_ADDRESS || "0x40B607DAed835Bf2126CB1f8762f3B09D1dde710",
+    84532: process.env.NEXT_PUBLIC_PREDICTIONS_CONTRACT_ADDRESS || "0xbec4aaFa4B2f4eEE5ef246941d4fC94632A22dD7",
     // Base mainnet  
     8453: "",
   },

@@ -5,6 +5,7 @@ import { useIsInitialized, useIsSignedIn, useEvmAddress } from "@coinbase/cdp-ho
 import { AuthButton } from "@coinbase/cdp-react/components/AuthButton";
 import { MarketCreationForm } from "@/components/admin/MarketCreationForm";
 import { BulkWithdrawal } from "@/components/admin/BulkWithdrawal";
+import { DeadPoolWithdrawal } from "@/components/admin/DeadPoolWithdrawal";
 import { FaucetButtons } from "@/components/admin/FaucetButtons";
 import { DockNavigation } from "@/components/navigation/DockNavigation";
 import { createPublicClient, http, formatUnits } from "viem";
@@ -134,6 +135,7 @@ export default function AdminContent() {
               </span>
             </div>
             <BulkWithdrawal />
+            <DeadPoolWithdrawal />
             <FaucetButtons />
           </div>
         </div>

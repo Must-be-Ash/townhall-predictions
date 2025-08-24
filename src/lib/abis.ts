@@ -200,6 +200,42 @@ export const TOWN_HALL_PREDICTIONS_ABI = [
       {"name": "user", "type": "address", "indexed": true},
       {"name": "amount", "type": "uint256", "indexed": false}
     ]
+  },
+  {
+    "type": "function",
+    "name": "isDeadPoolMarket",
+    "inputs": [
+      {"name": "marketId", "type": "uint256"}
+    ],
+    "outputs": [{"name": "isDeadPool", "type": "bool"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "claimDeadPoolFunds",
+    "inputs": [
+      {"name": "marketId", "type": "uint256"}
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "deadPoolClaimed",
+    "inputs": [
+      {"name": "marketId", "type": "uint256"}
+    ],
+    "outputs": [{"name": "", "type": "bool"}],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "DeadPoolFundsClaimed",
+    "inputs": [
+      {"name": "marketId", "type": "uint256", "indexed": true},
+      {"name": "admin", "type": "address", "indexed": true},
+      {"name": "amount", "type": "uint256", "indexed": false}
+    ]
   }
 ] as const;
 

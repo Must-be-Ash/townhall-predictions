@@ -32,7 +32,7 @@ export function MobileDock() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#2a2a2a] border-t border-[#3a3a3a] pb-safe">
-      <div className="max-w-md mx-auto px-12 py-3 pb-12">
+      <div className="max-w-md mx-auto px-12 py-3 pb-8">
         <div className="flex items-center justify-between">
           
 

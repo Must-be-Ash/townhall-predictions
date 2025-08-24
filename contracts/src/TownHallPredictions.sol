@@ -57,6 +57,9 @@ contract TownHallPredictions is Ownable, ReentrancyGuard {
     /// @notice Mapping from market ID to array of participant addresses
     mapping(uint256 => address[]) public marketParticipants;
     
+    /// @notice Mapping to track if dead pool funds have been claimed for a market
+    mapping(uint256 => bool) public deadPoolClaimed;
+    
     /// @notice Emitted when a new market is created
     event MarketCreated(
         uint256 indexed marketId,
@@ -92,6 +95,13 @@ contract TownHallPredictions is Ownable, ReentrancyGuard {
         uint256 amount
     );
     
+    /// @notice Emitted when admin claims dead pool funds
+    event DeadPoolFundsClaimed(
+        uint256 indexed marketId,
+        address indexed admin,
+        uint256 amount
+    );
+    
     /// @notice Thrown when a market does not exist
     error MarketNotFound();
     
@@ -124,6 +134,12 @@ contract TownHallPredictions is Ownable, ReentrancyGuard {
     
     /// @notice Thrown when trying to bet on a side that has reached its dynamic cap
     error BettingSideFull();
+    
+    /// @notice Thrown when trying to claim dead pool funds that don't exist
+    error NoDeadPoolFunds();
+    
+    /// @notice Thrown when trying to claim already claimed dead pool funds
+    error DeadPoolAlreadyClaimed();
     
     /**
      * @dev Constructor sets the USDC token address and initializes ownership
@@ -463,6 +479,52 @@ contract TownHallPredictions is Ownable, ReentrancyGuard {
         
         // Never exceed the base maximum
         return calculatedCap > BASE_MAX_BETS_PER_SIDE ? BASE_MAX_BETS_PER_SIDE : calculatedCap;
+    }
+    
+    /**
+     * @notice Checks if a market is a dead pool (resolved with zero winners)
+     * @param marketId The ID of the market to check
+     * @return isDeadPool True if the market is a dead pool
+     */
+    function isDeadPoolMarket(uint256 marketId) public view returns (bool isDeadPool) {
+        Market storage market = markets[marketId];
+        
+        if (!market.resolved || market.voided || market.createdAt == 0) {
+            return false;
+        }
+        
+        // Check if the winning side has zero bets
+        uint256 winningPool = market.winningOutcome ? market.yesTotal : market.noTotal;
+        return winningPool == 0;
+    }
+    
+    /**
+     * @notice Allows admin to claim funds from dead pool markets
+     * @dev Dead pool occurs when market resolves but winning side has zero bets
+     * @param marketId The ID of the dead pool market
+     */
+    function claimDeadPoolFunds(uint256 marketId) external onlyOwner nonReentrant {
+        Market storage market = markets[marketId];
+        
+        if (market.createdAt == 0) revert MarketNotFound();
+        if (market.voided) revert MarketIsVoided();
+        if (!market.resolved) revert MarketAlreadyResolved();
+        if (deadPoolClaimed[marketId]) revert DeadPoolAlreadyClaimed();
+        
+        // Verify this is actually a dead pool
+        if (!isDeadPoolMarket(marketId)) revert NoDeadPoolFunds();
+        
+        // Calculate total pool amount
+        uint256 totalPool = market.yesTotal + market.noTotal;
+        if (totalPool == 0) revert NoDeadPoolFunds();
+        
+        // Mark as claimed to prevent double-claiming
+        deadPoolClaimed[marketId] = true;
+        
+        // Transfer funds to admin
+        require(usdc.transfer(msg.sender, totalPool), "USDC transfer failed");
+        
+        emit DeadPoolFundsClaimed(marketId, msg.sender, totalPool);
     }
     
     /**

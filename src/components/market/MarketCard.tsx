@@ -65,7 +65,7 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
   
   // Enhanced user feedback states
   const [betFeedback, setBetFeedback] = useState<{
-    type: 'success' | 'processing' | 'confirming' | null;
+    type: 'success' | 'processing' | null;
     outcome?: boolean;
     message?: string;
   }>({ type: null });
@@ -180,42 +180,32 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
       setBetFeedback({ type: 'processing', outcome, message: 'Placing bet...' });
       await placeBet(marketId, outcome);
       
-      // Show success immediately with optimistic data
+      // Show success immediately - trust the transaction result
       setBetFeedback({ type: 'success', outcome, message: `Bet placed successfully!` });
       
-      // Force high-priority refresh to get confirmation quickly
-      marketPollingService.forceRefresh(marketId, 1); // CRITICAL priority
+      // Trigger background refresh for eventual confirmation (non-blocking)
+      marketPollingService.forceRefresh(marketId, 2); // HIGH priority, not CRITICAL
       
-      // Wait for blockchain confirmation with enhanced feedback
-      setBetFeedback({ type: 'confirming', outcome, message: 'Confirming on blockchain...' });
+      // Clear success feedback after showing it long enough for user to see
+      setTimeout(() => setBetFeedback({ type: null }), 3000);
       
-      const originalYesCount = market.yesCount;
-      const originalNoCount = market.noCount;
-      
-      let attempts = 0;
-      const maxAttempts = 8; // Reduced since we have smart polling now
-      while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Get fresh market data to check if bet was recorded
-        const updatedMarket = getMarket(marketId);
-        if (updatedMarket && 
-            (updatedMarket.yesCount > originalYesCount || updatedMarket.noCount > originalNoCount)) {
-          setBetFeedback({ type: 'success', outcome, message: 'Bet confirmed!' });
-          // Clear feedback after showing success
-          setTimeout(() => setBetFeedback({ type: null }), 3000);
-          break; // Bet was recorded, we're done
+      // Background validation: Check if bet was actually confirmed after delay
+      setTimeout(async () => {
+        try {
+          const validationMarket = getMarket(marketId);
+          const originalTotal = market.yesCount + market.noCount;
+          const currentTotal = validationMarket ? validationMarket.yesCount + validationMarket.noCount : originalTotal;
+          
+          // If blockchain hasn't caught up after 15 seconds, show subtle indicator
+          if (currentTotal <= originalTotal) {
+            console.warn(`Bet validation: Market ${marketId} blockchain data hasn't updated after 15s`);
+            // Optionally show a very subtle warning that doesn't interfere with UX
+            // This is just for monitoring - optimistic updates will persist
+          }
+        } catch (error) {
+          console.error("Background bet validation failed:", error);
         }
-        attempts++;
-        
-        // Trigger another priority refresh on each attempt
-        marketPollingService.forceRefresh(marketId, 1);
-      }
-      
-      if (attempts >= maxAttempts) {
-        setBetFeedback({ type: 'success', outcome, message: 'Bet placed (confirmation pending)' });
-        setTimeout(() => setBetFeedback({ type: null }), 5000);
-      }
+      }, 15000); // 15 second background validation
       
     } catch (error) {
       console.error("Failed to place bet:", error);
@@ -315,11 +305,6 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
               </svg>
             </div>
           )}
-          {betFeedback.type === 'confirming' && (
-            <div className="flex items-center">
-              <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          )}
         </div>
       )}
       
@@ -417,7 +402,6 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
             <div className={`mt-3 p-3 rounded-lg text-sm font-medium transition-all duration-300 ${
               betFeedback.type === 'processing' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
               betFeedback.type === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-              betFeedback.type === 'confirming' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
               'bg-gray-500/20 text-gray-400 border border-gray-500/30'
             }`}>
               <div className="flex items-center">
@@ -431,9 +415,6 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
                   <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
-                )}
-                {betFeedback.type === 'confirming' && (
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
                 )}
                 <span>{betFeedback.message}</span>
                 {betFeedback.outcome !== undefined && (

@@ -26,7 +26,7 @@ contract TownHallPredictionsTest is Test {
     address public user2 = address(0x3);
     address public user3 = address(0x4);
 
-    uint256 public constant BET_AMOUNT = 500000; // 0.5 USDC
+    uint256 public constant BET_AMOUNT = 1000000; // 1.0 USDC
     uint256 public constant INITIAL_BALANCE = 1000 * 10**6; // $1000 USDC
 
     event MarketCreated(
@@ -56,6 +56,12 @@ contract TownHallPredictionsTest is Test {
     event WinningsWithdrawn(
         uint256 indexed marketId,
         address indexed user,
+        uint256 amount
+    );
+    
+    event DeadPoolFundsClaimed(
+        uint256 indexed marketId,
+        address indexed admin,
         uint256 amount
     );
 
@@ -542,5 +548,296 @@ contract TownHallPredictionsTest is Test {
         // Contract retains some funds due to reduced multipliers (prevents over-payment)
         // Total deposited: 1.5 USDC, Total paid: 1.275 USDC, Remaining: 0.225 USDC
         assertEq(usdc.balanceOf(address(predictions)), 225000);
+    }
+
+    // ========================================
+    // Dead Pool Tests
+    // ========================================
+
+    function test_isDeadPoolMarket_OnlyYesBets_ResolvesNo() public {
+        // Create market
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        // Only YES bets placed
+        vm.prank(user1);
+        predictions.placeBet(marketId, true); // YES
+        vm.prank(user2);
+        predictions.placeBet(marketId, true); // YES
+
+        // Market resolves to NO (opposite of bets)
+        vm.warp(closeTime + 1);
+        vm.prank(admin);
+        predictions.resolveMarket(marketId, false); // NO wins
+
+        // Should be dead pool
+        assertTrue(predictions.isDeadPoolMarket(marketId));
+    }
+
+    function test_isDeadPoolMarket_OnlyNoBets_ResolvesYes() public {
+        // Create market
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        // Only NO bets placed
+        vm.prank(user1);
+        predictions.placeBet(marketId, false); // NO
+        vm.prank(user2);
+        predictions.placeBet(marketId, false); // NO
+
+        // Market resolves to YES (opposite of bets)
+        vm.warp(closeTime + 1);
+        vm.prank(admin);
+        predictions.resolveMarket(marketId, true); // YES wins
+
+        // Should be dead pool
+        assertTrue(predictions.isDeadPoolMarket(marketId));
+    }
+
+    function test_isDeadPoolMarket_NormalMarket_NotDeadPool() public {
+        // Create market with balanced bets
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        // Balanced betting
+        vm.prank(user1);
+        predictions.placeBet(marketId, true); // YES
+        vm.prank(user2);
+        predictions.placeBet(marketId, false); // NO
+
+        // Resolve normally
+        vm.warp(closeTime + 1);
+        vm.prank(admin);
+        predictions.resolveMarket(marketId, true); // YES wins
+
+        // Should NOT be dead pool
+        assertFalse(predictions.isDeadPoolMarket(marketId));
+    }
+
+    function test_isDeadPoolMarket_UnresolvedMarket_NotDeadPool() public {
+        // Create market
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        // Only YES bets
+        vm.prank(user1);
+        predictions.placeBet(marketId, true);
+
+        // Don't resolve - should not be dead pool
+        assertFalse(predictions.isDeadPoolMarket(marketId));
+    }
+
+    function test_isDeadPoolMarket_VoidedMarket_NotDeadPool() public {
+        // Create market
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        // Only YES bets
+        vm.prank(user1);
+        predictions.placeBet(marketId, true);
+
+        // Void instead of resolve
+        vm.prank(admin);
+        predictions.voidMarket(marketId);
+
+        // Should NOT be dead pool
+        assertFalse(predictions.isDeadPoolMarket(marketId));
+    }
+
+    function test_claimDeadPoolFunds_Success() public {
+        // Create market
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        // Only YES bets (2 USDC total)
+        vm.prank(user1);
+        predictions.placeBet(marketId, true);
+        vm.prank(user2);
+        predictions.placeBet(marketId, true);
+
+        // Market resolves to NO (dead pool)
+        vm.warp(closeTime + 1);
+        vm.prank(admin);
+        predictions.resolveMarket(marketId, false);
+
+        // Check contract has the funds
+        assertEq(usdc.balanceOf(address(predictions)), 2 * BET_AMOUNT);
+
+        // Check admin balance before
+        uint256 adminBalanceBefore = usdc.balanceOf(admin);
+
+        // Admin claims dead pool funds
+        vm.expectEmit(true, true, true, true);
+        emit DeadPoolFundsClaimed(marketId, admin, 2 * BET_AMOUNT);
+        
+        vm.prank(admin);
+        predictions.claimDeadPoolFunds(marketId);
+
+        // Check funds transferred to admin
+        assertEq(usdc.balanceOf(admin), adminBalanceBefore + 2 * BET_AMOUNT);
+        assertEq(usdc.balanceOf(address(predictions)), 0);
+
+        // Check dead pool marked as claimed
+        assertTrue(predictions.deadPoolClaimed(marketId));
+    }
+
+    function test_claimDeadPoolFunds_RevertIfNotDeadPool() public {
+        // Create balanced market
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        // Balanced betting
+        vm.prank(user1);
+        predictions.placeBet(marketId, true);
+        vm.prank(user2);
+        predictions.placeBet(marketId, false);
+
+        // Resolve normally
+        vm.warp(closeTime + 1);
+        vm.prank(admin);
+        predictions.resolveMarket(marketId, true);
+
+        // Try to claim - should revert
+        vm.prank(admin);
+        vm.expectRevert(TownHallPredictions.NoDeadPoolFunds.selector);
+        predictions.claimDeadPoolFunds(marketId);
+    }
+
+    function test_claimDeadPoolFunds_RevertIfNotResolved() public {
+        // Create market
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        // Place bets but don't resolve
+        vm.prank(user1);
+        predictions.placeBet(marketId, true);
+
+        // Try to claim - should revert
+        vm.prank(admin);
+        vm.expectRevert(TownHallPredictions.MarketAlreadyResolved.selector);
+        predictions.claimDeadPoolFunds(marketId);
+    }
+
+    function test_claimDeadPoolFunds_RevertIfVoided() public {
+        // Create market
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        // Place bets and void
+        vm.prank(user1);
+        predictions.placeBet(marketId, true);
+        vm.prank(admin);
+        predictions.voidMarket(marketId);
+
+        // Try to claim - should revert
+        vm.prank(admin);
+        vm.expectRevert(TownHallPredictions.MarketIsVoided.selector);
+        predictions.claimDeadPoolFunds(marketId);
+    }
+
+    function test_claimDeadPoolFunds_RevertIfAlreadyClaimed() public {
+        // Create dead pool market
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        vm.prank(user1);
+        predictions.placeBet(marketId, true);
+
+        vm.warp(closeTime + 1);
+        vm.prank(admin);
+        predictions.resolveMarket(marketId, false);
+
+        // Claim once
+        vm.prank(admin);
+        predictions.claimDeadPoolFunds(marketId);
+
+        // Try to claim again - should revert
+        vm.prank(admin);
+        vm.expectRevert(TownHallPredictions.DeadPoolAlreadyClaimed.selector);
+        predictions.claimDeadPoolFunds(marketId);
+    }
+
+    function test_claimDeadPoolFunds_RevertIfNotOwner() public {
+        // Create dead pool market
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        vm.prank(user1);
+        predictions.placeBet(marketId, true);
+
+        vm.warp(closeTime + 1);
+        vm.prank(admin);
+        predictions.resolveMarket(marketId, false);
+
+        // Non-owner tries to claim - should revert
+        vm.prank(user1);
+        vm.expectRevert();
+        predictions.claimDeadPoolFunds(marketId);
+    }
+
+    function test_claimDeadPoolFunds_RevertIfNoBets() public {
+        // Create market with no bets
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        // Resolve with no bets
+        vm.warp(closeTime + 1);
+        vm.prank(admin);
+        predictions.resolveMarket(marketId, false);
+
+        // Try to claim - should revert (no funds)
+        vm.prank(admin);
+        vm.expectRevert(TownHallPredictions.NoDeadPoolFunds.selector);
+        predictions.claimDeadPoolFunds(marketId);
+    }
+
+    function test_deadPoolScenario_PreservesMarketResolution() public {
+        // Create market
+        uint256 closeTime = block.timestamp + 1 hours;
+        vm.prank(admin);
+        uint256 marketId = predictions.createMarket("Question?", closeTime);
+
+        // Only YES bets
+        vm.prank(user1);
+        predictions.placeBet(marketId, true);
+        vm.prank(user2);
+        predictions.placeBet(marketId, true);
+
+        // Resolve to NO (dead pool)
+        vm.warp(closeTime + 1);
+        vm.prank(admin);
+        predictions.resolveMarket(marketId, false);
+
+        // Verify market state preserved
+        TownHallPredictions.Market memory market = predictions.getMarket(marketId);
+        assertTrue(market.resolved);
+        assertFalse(market.winningOutcome); // NO won
+        assertFalse(market.voided);
+
+        // Users can't withdraw (no winnings)
+        vm.prank(user1);
+        vm.expectRevert(TownHallPredictions.NoWinnings.selector);
+        predictions.withdrawWinnings(marketId);
+
+        // But admin can claim dead pool funds
+        vm.prank(admin);
+        predictions.claimDeadPoolFunds(marketId);
+
+        // Market resolution data still intact
+        market = predictions.getMarket(marketId);
+        assertTrue(market.resolved);
+        assertFalse(market.winningOutcome); // Still shows NO won
     }
 }

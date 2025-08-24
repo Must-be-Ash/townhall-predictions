@@ -41,6 +41,7 @@ interface MarketState {
   loading: Set<number>;
   errors: Map<number, string>;
   lastUpdated: Map<number, number>;
+  optimisticUpdates: Map<number, { data: Partial<Market>; timestamp: number }>;
 }
 
 type MarketAction = 
@@ -55,6 +56,7 @@ const initialState: MarketState = {
   loading: new Set(),
   errors: new Map(),
   lastUpdated: new Map(),
+  optimisticUpdates: new Map(),
 };
 
 function marketReducer(state: MarketState, action: MarketAction): MarketState {
@@ -73,12 +75,50 @@ function marketReducer(state: MarketState, action: MarketAction): MarketState {
       const newMarkets = new Map(state.markets);
       const newLastUpdated = new Map(state.lastUpdated);
       const newErrors = new Map(state.errors);
+      const newOptimisticUpdates = new Map(state.optimisticUpdates);
       
-      newMarkets.set(action.marketId, action.market);
+      const currentOptimistic = newOptimisticUpdates.get(action.marketId);
+      let finalMarket = action.market;
+      
+      // If we have recent optimistic updates, preserve them if blockchain data hasn't caught up yet
+      if (currentOptimistic) {
+        const optimisticAge = Date.now() - currentOptimistic.timestamp;
+        const OPTIMISTIC_TIMEOUT = 30000; // 30 seconds max for optimistic updates
+        
+        // If optimistic update is still fresh and blockchain data hasn't progressed
+        if (optimisticAge < OPTIMISTIC_TIMEOUT) {
+          const currentMarket = state.markets.get(action.marketId);
+          
+          // Check if blockchain data has actually progressed beyond optimistic expectations
+          const blockchainProgressed = currentMarket && (
+            (currentOptimistic.data.yesCount && action.market.yesCount >= (currentMarket.yesCount + 1)) ||
+            (currentOptimistic.data.noCount && action.market.noCount >= (currentMarket.noCount + 1))
+          );
+          
+          if (blockchainProgressed) {
+            // Blockchain has caught up, clear optimistic update
+            newOptimisticUpdates.delete(action.marketId);
+          } else {
+            // Preserve optimistic updates as blockchain hasn't caught up yet
+            finalMarket = { ...action.market, ...currentOptimistic.data };
+          }
+        } else {
+          // Optimistic update has expired, clear it
+          newOptimisticUpdates.delete(action.marketId);
+        }
+      }
+      
+      newMarkets.set(action.marketId, finalMarket);
       newLastUpdated.set(action.marketId, Date.now());
       newErrors.delete(action.marketId);
       
-      return { ...state, markets: newMarkets, lastUpdated: newLastUpdated, errors: newErrors };
+      return { 
+        ...state, 
+        markets: newMarkets, 
+        lastUpdated: newLastUpdated, 
+        errors: newErrors,
+        optimisticUpdates: newOptimisticUpdates
+      };
     }
 
     case 'SET_ERROR': {
@@ -95,11 +135,21 @@ function marketReducer(state: MarketState, action: MarketAction): MarketState {
 
     case 'OPTIMISTIC_UPDATE': {
       const newMarkets = new Map(state.markets);
+      const newOptimisticUpdates = new Map(state.optimisticUpdates);
       const currentMarket = newMarkets.get(action.marketId);
+      
       if (currentMarket) {
+        // Apply optimistic update immediately to UI
         newMarkets.set(action.marketId, { ...currentMarket, ...action.update });
+        
+        // Track the optimistic update for persistence logic
+        newOptimisticUpdates.set(action.marketId, {
+          data: action.update,
+          timestamp: Date.now()
+        });
       }
-      return { ...state, markets: newMarkets };
+      
+      return { ...state, markets: newMarkets, optimisticUpdates: newOptimisticUpdates };
     }
 
     default:
