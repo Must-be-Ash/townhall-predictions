@@ -21,9 +21,14 @@ interface Market {
   noMultiplier?: number;
 }
 
+const MARKETS_PER_PAGE = 9;
+
 export function MarketGrid() {
-  const [marketIds, setMarketIds] = useState<number[]>([]);
+  const [allMarketIds, setAllMarketIds] = useState<number[]>([]);
+  const [displayedMarketIds, setDisplayedMarketIds] = useState<number[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>({
     search: '',
     sortBy: 'newest'
@@ -32,23 +37,62 @@ export function MarketGrid() {
   const { getMarketCounter } = useContract();
   const { getMarket, refreshMarket } = useMarkets();
 
-  // Load market IDs once (polling service handles data updates)
+  // Load more markets function
+  const loadMoreMarkets = async () => {
+    if (loadingMore || displayedMarketIds.length >= allMarketIds.length) return;
+    
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const startIndex = 0; // Always start from beginning
+      const endIndex = nextPage * MARKETS_PER_PAGE;
+      
+      // Get all markets up to the current page
+      const newDisplayedIds = allMarketIds.slice(startIndex, endIndex);
+      setDisplayedMarketIds(newDisplayedIds);
+      setCurrentPage(nextPage);
+    } catch (error) {
+      console.error("Failed to load more markets:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Calculate if there are more markets to load
+  const hasMoreMarkets = displayedMarketIds.length < allMarketIds.length;
+  const remainingMarkets = allMarketIds.length - displayedMarketIds.length;
+
+  // Reset pagination when filters change
   useEffect(() => {
-    async function loadMarketIds() {
+    if (allMarketIds.length > 0) {
+      setCurrentPage(1);
+      const firstPageIds = allMarketIds.slice(0, MARKETS_PER_PAGE);
+      setDisplayedMarketIds(firstPageIds);
+    }
+  }, [filters, allMarketIds]);
+
+  // Load all market IDs once to know total count
+  useEffect(() => {
+    async function loadAllMarketIds() {
       try {
         setLoading(true);
         const marketCounter = await getMarketCounter();
         const marketCount = Number(marketCounter);
         
         if (marketCount === 0) {
-          setMarketIds([]);
+          setAllMarketIds([]);
+          setDisplayedMarketIds([]);
           setLoading(false);
           return;
         }
 
-        // Create array of market IDs (markets start from ID 0)
+        // Create array of all market IDs (markets start from ID 0)
         const ids = Array.from({ length: marketCount }, (_, i) => i);
-        setMarketIds(ids);
+        setAllMarketIds(ids);
+        
+        // Load first page of markets
+        const firstPageIds = ids.slice(0, MARKETS_PER_PAGE);
+        setDisplayedMarketIds(firstPageIds);
       } catch (error) {
         console.error("Failed to load market count:", error);
       } finally {
@@ -56,18 +100,18 @@ export function MarketGrid() {
       }
     }
 
-    loadMarketIds();
+    loadAllMarketIds();
   }, [getMarketCounter]);
 
-  // Trigger loading for each market ID through centralized system
+  // Trigger loading for displayed markets only (for performance)
   useEffect(() => {
-    marketIds.forEach(id => {
+    displayedMarketIds.forEach(id => {
       refreshMarket(id);
     });
-  }, [marketIds, refreshMarket]);
+  }, [displayedMarketIds, refreshMarket]);
 
-  // Get market data from centralized context and filter/sort
-  const marketsWithData = marketIds
+  // Get market data from centralized context for displayed markets
+  const marketsWithData = displayedMarketIds
     .map(id => ({ id, data: getMarket(id) }))
     .filter(market => market.data !== undefined) as { id: number; data: Market }[];
 
@@ -130,11 +174,11 @@ export function MarketGrid() {
   }
 
   // Show loading if we have market IDs but no market data yet (still loading from polling service)
-  const hasMarketIds = marketIds.length > 0;
+  const hasMarketIds = displayedMarketIds.length > 0;
   const hasMarketData = marketsWithData.length > 0;
   const isLoadingMarketData = hasMarketIds && !hasMarketData;
 
-  if (marketIds.length === 0 && !loading) {
+  if (allMarketIds.length === 0 && !loading) {
     return (
       <div className="space-y-6">
         <SearchAndFilter 
@@ -178,10 +222,10 @@ export function MarketGrid() {
         <SearchAndFilter 
           filters={filters} 
           onFiltersChange={setFilters}
-          totalMarkets={marketIds.length}
+          totalMarkets={displayedMarketIds.length}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {marketIds.map((_, i) => (
+          {displayedMarketIds.map((_, i) => (
             <div key={i} className="bg-[#2a2a2a] rounded-2xl p-6 animate-pulse border border-[#3a3a3a]">
               <div className="h-4 bg-[#3a3a3a] rounded mb-4"></div>
               <div className="h-32 bg-[#3a3a3a] rounded mb-4"></div>
@@ -217,11 +261,54 @@ export function MarketGrid() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredMarkets.map(market => (
-            <MarketCard key={market.id} marketId={market.id} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredMarkets.map(market => (
+              <MarketCard key={market.id} marketId={market.id} />
+            ))}
+          </div>
+          
+          {/* Load More Button */}
+          {hasMoreMarkets && (
+            <div className="flex flex-col items-center mt-8 space-y-3">
+              <p className="text-sm text-gray-400">
+                Showing {displayedMarketIds.length} of {allMarketIds.length} markets
+                {remainingMarkets > 0 && (
+                  <span className="ml-1">({remainingMarkets} more available)</span>
+                )}
+              </p>
+              <button
+                onClick={loadMoreMarkets}
+                disabled={loadingMore}
+                className={`
+                  px-6 py-3 rounded-xl font-medium transition-all duration-200
+                  ${loadingMore 
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg hover:scale-105'
+                  }
+                  flex items-center space-x-2
+                `}
+              >
+                {loadingMore ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Load More Markets</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
