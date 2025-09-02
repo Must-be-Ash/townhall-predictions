@@ -5,6 +5,7 @@ import { MarketCard } from "./MarketCard";
 import { SearchAndFilter, FilterOptions } from "./SearchAndFilter";
 import { useContract } from "@/hooks/useContract";
 import { useMarkets } from "@/contexts/MarketContext";
+import { HIDDEN_MARKETS } from "@/lib/constants";
 
 interface Market {
   question: string;
@@ -86,8 +87,9 @@ export function MarketGrid() {
           return;
         }
 
-        // Create array of all market IDs (markets start from ID 0)
-        const ids = Array.from({ length: marketCount }, (_, i) => i);
+        // Create array of all market IDs (markets start from ID 0), excluding hidden ones
+        const ids = Array.from({ length: marketCount }, (_, i) => i)
+          .filter(id => !HIDDEN_MARKETS.includes(id));
         setAllMarketIds(ids);
         
         // Load first page of markets
@@ -196,20 +198,6 @@ export function MarketGrid() {
           <p className="text-gray-500 mb-6 max-w-md mx-auto">
             Markets will appear here when they are created by administrators. Check back soon or create a market in the admin panel.
           </p>
-          <div className="flex justify-center space-x-4">
-            <a 
-              href="/admin"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium transition-colors"
-            >
-              Admin Panel
-            </a>
-            <a 
-              href="/board"
-              className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-medium transition-colors"
-            >
-              Live Board
-            </a>
-          </div>
         </div>
       </div>
     );

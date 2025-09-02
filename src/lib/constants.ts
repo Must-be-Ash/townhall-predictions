@@ -42,6 +42,9 @@ export const TRANSACTION_CONFIRMATIONS = 1; // Number of confirmations to wait f
 export const MAX_MARKETS_PER_PAGE = 20;
 export const MAX_RECENT_BETS = 10;
 
+// Markets to hide from public display
+export const HIDDEN_MARKETS = [0];
+
 // Contract addresses
 export const CONTRACT_ADDRESSES = {
   USDC: {
