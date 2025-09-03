@@ -1,8 +1,10 @@
 "use client";
 
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { TradingRules } from './TradingRules';
+import { UserJourneyGuide } from './UserJourneyGuide';
 
 interface InfoModalProps {
   isOpen: boolean;
@@ -10,6 +12,8 @@ interface InfoModalProps {
 }
 
 export function InfoModal({ isOpen, onClose }: InfoModalProps) {
+  const [activeTab, setActiveTab] = useState<'rules' | 'guide'>('rules');
+
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -36,7 +40,7 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md sm:max-w-lg transform overflow-hidden rounded-2xl bg-[#2a2a2a] border border-[#3a3a3a] p-6 text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-md sm:max-w-lg lg:max-w-2xl transform overflow-hidden rounded-2xl bg-[#2a2a2a] border border-[#3a3a3a] p-4 sm:p-6 text-left align-middle shadow-xl transition-all max-h-[85vh] flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                   <Dialog.Title className="text-xl font-bold text-white flex items-center">
@@ -51,90 +55,39 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
                   </button>
                 </div>
 
+                {/* Toggle */}
+                <div className="flex mb-6 bg-[#1a1a1a] border border-[#404040] rounded-lg p-1">
+                  <button
+                    onClick={() => setActiveTab('rules')}
+                    className={`flex-1 flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                      activeTab === 'rules'
+                        ? 'bg-gradient-to-r from-[#4a4a4a] to-[#606060] text-white shadow-lg'
+                        : 'text-[#808080] hover:text-white'
+                    }`}
+                  >
+                    <span className="hidden sm:inline">Trading Rules</span>
+                    <span className="sm:hidden">Rules</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('guide')}
+                    className={`flex-1 flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                      activeTab === 'guide'
+                        ? 'bg-gradient-to-r from-[#4a4a4a] to-[#606060] text-white shadow-lg'
+                        : 'text-[#808080] hover:text-white'
+                    }`}
+                  >
+                    <span className="hidden sm:inline">Getting Started</span>
+                    <span className="sm:hidden">Guide</span>
+                  </button>
+                </div>
+
                 {/* Content */}
-                <div className="space-y-6 text-sm text-[#c0c0c0]">
-                  {/* Basic Rules */}
-                  <section>
-                    <h3 className="text-white font-semibold mb-3 text-base">Basic Rules</h3>
-                    <ul className="space-y-2">
-                      <li className="flex items-start">
-                        <span className="text-blue-400 mr-2">•</span>
-                        <span><strong className="text-white">Fixed bet:</strong> Each bet costs exactly $1.00 USDC</span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="text-blue-400 mr-2">•</span>
-                        <span><strong className="text-white">One bet per market:</strong> You can only place one bet per market</span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="text-blue-400 mr-2">•</span>
-                        <span><strong className="text-white">Time limit:</strong> Betting closes when the market expires</span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="text-blue-400 mr-2">•</span>
-                        <span><strong className="text-white">Market creation:</strong> Anyone can create markets, only admin resolves them</span>
-                      </li>
-                    </ul>
-                  </section>
-
-                  {/* Winning Scenarios */}
-                  <section>
-                    <h3 className="text-white font-semibold mb-3 text-base">Winning Scenarios</h3>
-                    <div className="space-y-3">
-                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
-                        <div className="font-medium text-green-400 mb-1">Maximum Win</div>
-                        <div className="text-xs">Everyone bets YES, you bet NO, and NO wins → You get the entire pool!</div>
-                      </div>
-                      
-                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
-                        <div className="font-medium text-green-400 mb-1">Balanced Win</div>
-                        <div className="text-xs">Mixed betting, you pick the winning side → Share the pool proportionally</div>
-                      </div>
-                      
-                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
-                        <div className="font-medium text-green-400 mb-1">Crowd Win</div>
-                        <div className="text-xs">Everyone bets the same side and wins → Everyone gets $1.00 back</div>
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* Losing Scenarios */}
-                  <section>
-                    <h3 className="text-white font-semibold mb-3 text-base">Losing Scenarios</h3>
-                    <div className="space-y-3">
-                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                        <div className="font-medium text-red-400 mb-1">Wrong Side</div>
-                        <div className="text-xs">You bet on the losing side → You lose your $1.00</div>
-                      </div>
-                      
-                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                        <div className="font-medium text-red-400 mb-1">House Wins</div>
-                        <div className="text-xs">Everyone bets one side, opposite side wins → House keeps the pool</div>
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* Special Cases */}
-                  <section>
-                    <h3 className="text-white font-semibold mb-3 text-base">Special Cases</h3>
-                    <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
-                      <div className="font-medium text-purple-400 mb-1">Market Voided</div>
-                      <div className="text-xs">If a market is voided due to disputes or issues → Everyone gets their $1.00 refunded</div>
-                    </div>
-                  </section>
-
-                  {/* Pro Tip */}
-                  <section className="pt-2 border-t border-[#3a3a3a]">
-                    <div className="bg-[#1a1a1a] border border-[#404040] rounded-lg p-3">
-                      <div className="font-medium text-[#ffffff] mb-1">💡 Pro Tip</div>
-                      <div className="text-xs text-[#a0a0a0]">
-                        The more unbalanced the betting, the higher your potential winnings if you pick the minority side correctly!
-                      </div>
-                    </div>
-                  </section>
+                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[#404040] scrollbar-track-transparent pr-2 -mr-2">
+                  {activeTab === 'rules' ? <TradingRules /> : <UserJourneyGuide />}
                 </div>
 
                 {/* Footer */}
-                <div className="mt-6 pt-4 border-t border-[#3a3a3a]">
+                <div className="mt-4 pt-4 border-t border-[#3a3a3a] flex-shrink-0">
                   <button
                     onClick={onClose}
                     className="w-full px-4 py-2 text-white text-sm font-bold rounded-lg transition-all border border-[#808080] border-[0.1px]"
