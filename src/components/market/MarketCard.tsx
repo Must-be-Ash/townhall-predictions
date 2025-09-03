@@ -343,7 +343,13 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
       <div className="mb-4">
         <div className="flex items-center justify-between text-sm text-[#808080] mb-2">
           <span className="flex items-center">
-            💰 USDC
+            Ends {closeTime.toLocaleDateString('en-US', { 
+              month: 'short', 
+              day: 'numeric', 
+              hour: 'numeric', 
+              minute: '2-digit',
+              hour12: true 
+            })}
           </span>
           <div className="flex items-center space-x-4">
             <span className="flex items-center">
@@ -364,10 +370,10 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
         className="text-[#ffffff] text-lg font-bold mb-4 font-sans overflow-hidden"
         style={{
           display: '-webkit-box',
-          WebkitLineClamp: 2,
+          WebkitLineClamp: 3,
           WebkitBoxOrient: 'vertical',
           lineHeight: '1.4',
-          height: 'calc(1.4em * 2)',
+          height: 'calc(1.4em * 3)',
           wordBreak: 'break-word'
         }}
       >
@@ -395,7 +401,7 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
         <>
           {/* Show user's existing bet if they have one */}
           {userBet?.hasBet ? (
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-4">
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
               <div className="flex items-center justify-center">
                 <span className="text-blue-400 font-medium">
                   You bet <span className={userBet.outcome ? 'text-green-400' : 'text-red-400'}>
