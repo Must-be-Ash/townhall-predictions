@@ -360,11 +360,17 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
       </div>
 
       {/* Question */}
-      <div className="text-[#ffffff] text-lg font-bold mb-4 leading-tight font-sans h-14 overflow-hidden" style={{
-        display: '-webkit-box',
-        WebkitLineClamp: 2,
-        WebkitBoxOrient: 'vertical'
-      }}>
+      <div 
+        className="text-[#ffffff] text-lg font-bold mb-4 font-sans overflow-hidden"
+        style={{
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          lineHeight: '1.4',
+          height: 'calc(1.4em * 2)',
+          wordBreak: 'break-word'
+        }}
+      >
         {market.question}
       </div>
 
