@@ -4,6 +4,13 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useContract } from "@/hooks/useContract";
 import { HIDDEN_MARKETS } from "@/lib/constants";
+import { createPublicClient, http } from "viem";
+import { baseSepolia } from "viem/chains";
+
+const publicClient = createPublicClient({
+  chain: baseSepolia,
+  transport: http(`https://base-sepolia.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`),
+});
 
 export function MarketCreationForm() {
   const { createMarket, getMarketCounter } = useContract();
@@ -47,6 +54,23 @@ export function MarketCreationForm() {
       
       // Extract transaction hash from result
       const transactionHash = result?.transactionHash;
+      
+      // Wait for transaction receipt and verify success
+      if (!transactionHash) {
+        throw new Error("No transaction hash received");
+      }
+      
+      console.log("Waiting for transaction receipt...");
+      const receipt = await publicClient.waitForTransactionReceipt({ 
+        hash: transactionHash as `0x${string}`,
+        timeout: 60000 // 60 second timeout
+      });
+      
+      if (receipt.status !== 'success') {
+        throw new Error(`Transaction failed on-chain. Status: ${receipt.status}`);
+      }
+      
+      console.log("Transaction confirmed successfully:", receipt);
       
       // Reset form
       setQuestion("");

@@ -109,7 +109,7 @@ export function useContract() {
       transaction: {
         to: marketContract,
         data,
-        gas: 200000n,
+        gas: 300000n,
         chainId: 84532,
         type: "eip1559",
       },

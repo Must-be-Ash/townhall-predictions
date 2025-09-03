@@ -79,6 +79,15 @@ async function getMarketFromBlockchain(marketId: number) {
       }),
     ]);
 
+    // Check if market actually exists (non-existent markets return default/empty values)
+    const question = marketData[0] as string;
+    const createdAt = Number(marketData[9]);
+    
+    if (!question || question.trim() === '' || createdAt === 0) {
+      console.log(`Market ${marketId} does not exist (empty question or zero createdAt)`);
+      return null;
+    }
+
     return {
       marketId,
       question: marketData[0],
