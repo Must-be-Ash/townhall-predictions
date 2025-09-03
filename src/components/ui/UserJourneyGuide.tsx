@@ -20,7 +20,7 @@ export function UserJourneyGuide() {
     {
       icon: PlusCircleIcon,
       title: "Create a Prediction",
-      description: "Submit your own prediction market like \"Will Bitcoin be higher than $110,000 on September 10th, 2025?\"",
+      description: 'Submit your own prediction market like "Will Bitcoin be higher than $110,000 on September 10th, 2025?"',
       details: "Set a clear question, choose an end date, and let others bet on the outcome. Markets are resolved by the Townhall admin after the closing date."
     },
     {
@@ -58,7 +58,7 @@ export function UserJourneyGuide() {
                   rel="noopener noreferrer"
                   className="text-blue-400 hover:text-blue-300 underline"
                 >
-                  CDP's faucet
+                  CDP&apos;s faucet
                 </a>
                 {' '}or use our built-in funding service.
               </>
