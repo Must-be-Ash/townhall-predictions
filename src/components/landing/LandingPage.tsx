@@ -6,7 +6,7 @@ import { TextShimmer } from "@/components/ui/text-shimmer";
 
 export function LandingPage() {
   const handleFooterClick = () => {
-    window.open('https://x.com/Must_be_Ash', '_blank', 'noopener,noreferrer');
+    window.open('https://www.coinbase.com/en-ca/legal/privacy', '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -30,9 +30,14 @@ export function LandingPage() {
           <h1 className="text-3xl md:text-2xl font-bold text-[#ffffff] leading-tight mt-2">
             Townhall <br/> Predictions
           </h1>
-          <p className="text-[#808080] mb-12">
-          prediction market fun without the risks
-          </p>
+          <div className="mb-12">
+            <TextShimmer 
+              className="text-[#808080] dark:[--base-color:#808080] dark:[--base-gradient-color:#ffffff]"
+              duration={3}
+            >
+              prediction market fun without the risks
+            </TextShimmer>
+          </div>
           {/* Login Button */}
           <div className="w-full">
             <AuthButton />
@@ -44,14 +49,9 @@ export function LandingPage() {
       <footer className="w-full text-center">
         <button
           onClick={handleFooterClick}
-          className="cursor-pointer hover:opacity-80 transition-opacity"
+          className="cursor-pointer text-sm text-[#969696] hover:text-[#FFFFFF] transition-colors duration-200"
         >
-          <TextShimmer 
-            className="text-sm text-[#ffffff] dark:[--base-color:#71717a] dark:[--base-gradient-color:#ffffff]"
-            duration={3}
-          >
-            made by @must_be_ash
-          </TextShimmer>
+          By using this app, you agree to Coinbase's privacy policy
         </button>
       </footer>
     </div>
