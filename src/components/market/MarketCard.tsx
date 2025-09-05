@@ -406,7 +406,7 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
                 <span className="text-blue-400 font-medium">
                   You bet <span className={userBet.outcome ? 'text-green-400' : 'text-red-400'}>
                     {userBet.outcome ? 'YES' : 'NO'}
-                  </span> on this market
+                </span> on this market
                 </span>
               </div>
             </div>

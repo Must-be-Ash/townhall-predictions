@@ -6,14 +6,14 @@ export function UserJourneyGuide() {
   const steps = [
     {
       icon: UserIcon,
-      title: "Create Your Wallet",
-      description: "Your wallet was created with your email at login and is accessible through OTP.",
+      title: "Your Wallet",
+      description: "Your wallet was created with your email at login and is accessible through OTP",
       details: "Embedded wallets are self-custodial EOAs that work with one time passwords sent to your email. You are the sole owner of your assets but there are no seed phrases or browser extensions required."
     },
     {
       icon: CreditCardIcon,
       title: "Fund Your Wallet",
-      description: "Get free testnet USDC to start betting. Visit CDP's faucet or use our built-in funding service.",
+      description: "When you logged in first you recieved some USDC and ETH on Base Sepolia Testnet but you can awlays get more on your dashboard or by visiting CDP's faucet.",
       details: "Each bet costs $1.00 USDC. Fund your wallet with testnet tokens (USDC & ETH on Base Sepolia Testnet) to begin making predictions.",
       link: "https://portal.cdp.coinbase.com/products/faucet"
     },
@@ -51,7 +51,14 @@ export function UserJourneyGuide() {
           <p className="text-[#c0c0c0] mb-2 leading-relaxed ml-8">
             {step.link ? (
               <>
-                Get free testnet USDC to start betting. Visit{' '}
+                When you logged in first you recieved some USDC and ETH on Base Sepolia Testnet but you can awlays get more on{' '}
+                <a 
+                  href="/admin"
+                  className="text-blue-400 hover:text-blue-300 underline"
+                >
+                  your dashboard
+                </a>
+                {' '}or by visiting{' '}
                 <a 
                   href={step.link}
                   target="_blank"
@@ -60,7 +67,6 @@ export function UserJourneyGuide() {
                 >
                   CDP&apos;s faucet
                 </a>
-                {' '}or use our built-in funding service.
               </>
             ) : (
               step.description
