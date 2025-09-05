@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Climate_Crisis } from "next/font/google";
 import { Analytics } from '@vercel/analytics/react';
 import { RootProviders } from "@/components/providers/RootProviders";
+import { BrandFooter } from "@/components/ui/brand-footer";
 import "./globals.css";
 
 const inter = Inter({
@@ -74,6 +75,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${climateCrisis.variable} font-sans antialiased`}>
         <RootProviders>
           {children}
+          <BrandFooter />
         </RootProviders>
         <Analytics />
       </body>

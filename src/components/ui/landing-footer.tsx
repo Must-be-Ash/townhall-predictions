@@ -29,7 +29,7 @@ export function LandingFooter() {
               duration={2.5}
               spread={1}
             >
-              By using this app, you agree to Coinbase's privacy policy
+              By using this app, you agree to Coinbase&apos;s privacy policy
             </TextShimmer>
           </a>
         </div>

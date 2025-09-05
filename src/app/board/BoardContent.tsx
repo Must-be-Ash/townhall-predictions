@@ -63,7 +63,7 @@ export default function BoardContent() {
       </div>
 
       {/* Main Display */}
-      <main className="flex-1 pb-24 md:pb-8">
+      <main className="flex-1 pb-20 md:pb-16">
         {availableMarkets.length > 0 ? (
           <LiveMarketDisplay marketId={selectedMarketId} />
         ) : (

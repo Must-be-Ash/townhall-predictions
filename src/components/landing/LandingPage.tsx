@@ -51,7 +51,7 @@ export function LandingPage() {
           onClick={handleFooterClick}
           className="cursor-pointer text-sm text-[#969696] hover:text-[#FFFFFF] transition-colors duration-200"
         >
-          By using this app, you agree to Coinbase's privacy policy
+          By using this app, you agree to Coinbase&apos;s privacy policy
         </button>
       </footer>
     </div>

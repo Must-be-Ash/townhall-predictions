@@ -15,7 +15,7 @@ export function BrandFooter() {
   
   return (
     <footer className="hidden md:block fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
-      <div className="flex items-center justify-center py-3 px-4">
+      <div className="flex items-center justify-center py-4 px-4 bg-[#1a1a1a]/80 backdrop-blur-sm">
         <div className="flex items-center gap-3 text-xs text-[#DBDBDB] pointer-events-auto">
           {/* Logo */}
           <Image
@@ -28,7 +28,7 @@ export function BrandFooter() {
           
           {/* Copyright Text */}
           <p className="text-center">
-            © 2025 Prediction Panda
+            © 2025 Townhall.lol
           </p>
         </div>
       </div>
