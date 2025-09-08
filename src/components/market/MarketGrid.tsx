@@ -27,9 +27,11 @@ const MARKETS_PER_PAGE = 9;
 export function MarketGrid() {
   const [allMarketIds, setAllMarketIds] = useState<number[]>([]);
   const [displayedMarketIds, setDisplayedMarketIds] = useState<number[]>([]);
+  const [searchMarketIds, setSearchMarketIds] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>({
     search: '',
     sortBy: 'newest'
@@ -37,6 +39,43 @@ export function MarketGrid() {
 
   const { getMarketCounter } = useContract();
   const { getMarket, refreshMarket } = useMarkets();
+
+  // Determine search state early
+  const isSearchActive = filters.search.trim().length > 0;
+  
+  // For search, we need to look through ALL markets, so we set searchMarketIds to match search
+  useEffect(() => {
+    if (!filters.search.trim()) {
+      setSearchMarketIds([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    
+    // Trigger loading for all markets first
+    allMarketIds.forEach(id => refreshMarket(id));
+    
+    // Then search through them with a delay
+    const timeoutId = setTimeout(() => {
+      const matchingIds: number[] = [];
+      
+      for (const id of allMarketIds) {
+        const marketData = getMarket(id);
+        
+        if (marketData && marketData.question.toLowerCase().includes(filters.search.toLowerCase())) {
+          matchingIds.push(id);
+        }
+      }
+      
+      setSearchMarketIds(matchingIds);
+      setSearchLoading(false);
+    }, 800); // Give time for markets to load
+
+    return () => {
+      clearTimeout(timeoutId);
+      setSearchLoading(false);
+    };
+  }, [filters.search, allMarketIds]); // Only depend on search term and market IDs
 
   // Load more markets function
   const loadMoreMarkets = async () => {
@@ -59,18 +98,18 @@ export function MarketGrid() {
     }
   };
 
-  // Calculate if there are more markets to load
-  const hasMoreMarkets = displayedMarketIds.length < allMarketIds.length;
+  // Calculate if there are more markets to load (only when not searching)
+  const hasMoreMarkets = !isSearchActive && displayedMarketIds.length < allMarketIds.length;
   const remainingMarkets = allMarketIds.length - displayedMarketIds.length;
 
-  // Reset pagination when filters change
+  // Reset pagination when non-search filters change
   useEffect(() => {
-    if (allMarketIds.length > 0) {
+    if (allMarketIds.length > 0 && !filters.search.trim()) {
       setCurrentPage(1);
       const firstPageIds = allMarketIds.slice(0, MARKETS_PER_PAGE);
       setDisplayedMarketIds(firstPageIds);
     }
-  }, [filters, allMarketIds]);
+  }, [filters.sortBy, allMarketIds, filters.search]);
 
   // Load all market IDs once to know total count
   useEffect(() => {
@@ -88,11 +127,12 @@ export function MarketGrid() {
         }
 
         // Create array of all market IDs (markets start from ID 0), excluding hidden ones
-        const ids = Array.from({ length: marketCount }, (_, i) => i)
+        // Reverse the array so newest markets (highest IDs) come first
+        const ids = Array.from({ length: marketCount }, (_, i) => marketCount - 1 - i)
           .filter(id => !HIDDEN_MARKETS.includes(id));
         setAllMarketIds(ids);
         
-        // Load first page of markets
+        // Load first page of markets (now contains newest markets)
         const firstPageIds = ids.slice(0, MARKETS_PER_PAGE);
         setDisplayedMarketIds(firstPageIds);
       } catch (error) {
@@ -105,29 +145,22 @@ export function MarketGrid() {
     loadAllMarketIds();
   }, [getMarketCounter]);
 
-  // Trigger loading for displayed markets only (for performance)
+  // Determine which market IDs to use based on search state
+  const activeMarketIds = isSearchActive ? searchMarketIds : displayedMarketIds;
+
+  // Trigger loading for active markets
   useEffect(() => {
-    displayedMarketIds.forEach(id => {
+    activeMarketIds.forEach(id => {
       refreshMarket(id);
     });
-  }, [displayedMarketIds, refreshMarket]);
+  }, [activeMarketIds, refreshMarket]);
 
-  // Get market data from centralized context for displayed markets
-  const marketsWithData = displayedMarketIds
+  // Get market data from centralized context for active markets
+  const marketsWithData = activeMarketIds
     .map(id => ({ id, data: getMarket(id) }))
     .filter(market => market.data !== undefined) as { id: number; data: Market }[];
 
   const filteredMarkets = marketsWithData
-    .filter(market => {
-      const { data } = market;
-      
-      // Search filter only
-      if (filters.search && !data.question.toLowerCase().includes(filters.search.toLowerCase())) {
-        return false;
-      }
-
-      return true;
-    })
     .sort((a, b) => {
       switch (filters.sortBy) {
         case 'newest':
@@ -175,10 +208,10 @@ export function MarketGrid() {
     );
   }
 
-  // Show loading if we have market IDs but no market data yet (still loading from polling service)
-  const hasMarketIds = displayedMarketIds.length > 0;
+  // Show loading if we have market IDs but no market data yet (still loading from polling service or searching)
+  const hasMarketIds = activeMarketIds.length > 0;
   const hasMarketData = marketsWithData.length > 0;
-  const isLoadingMarketData = hasMarketIds && !hasMarketData;
+  const isLoadingMarketData = (hasMarketIds && !hasMarketData) || searchLoading;
 
   if (allMarketIds.length === 0 && !loading) {
     return (
@@ -203,17 +236,17 @@ export function MarketGrid() {
     );
   }
 
-  // Show loading animation if markets are still being loaded from polling service
+  // Show loading animation if markets are still being loaded from polling service or searching
   if (isLoadingMarketData) {
     return (
       <div className="space-y-6">
         <SearchAndFilter 
           filters={filters} 
           onFiltersChange={setFilters}
-          totalMarkets={displayedMarketIds.length}
+          totalMarkets={activeMarketIds.length}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {displayedMarketIds.map((_, i) => (
+          {activeMarketIds.map((_, i) => (
             <div key={i} className="bg-[#2a2a2a] rounded-2xl p-6 animate-pulse border border-[#3a3a3a]">
               <div className="h-4 bg-[#3a3a3a] rounded mb-4"></div>
               <div className="h-32 bg-[#3a3a3a] rounded mb-4"></div>
