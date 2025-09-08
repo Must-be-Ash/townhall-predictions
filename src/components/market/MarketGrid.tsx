@@ -75,6 +75,7 @@ export function MarketGrid() {
       clearTimeout(timeoutId);
       setSearchLoading(false);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.search, allMarketIds]); // Only depend on search term and market IDs
 
   // Load more markets function
