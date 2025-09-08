@@ -38,20 +38,38 @@ function formatUSDC(amount: number): string {
 async function getMarketData(marketId: string) {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/markets/${marketId}`, {
+    const url = `${baseUrl}/api/markets/${marketId}`;
+    console.log(`[OG] Fetching market data from: ${url}`);
+    
+    const response = await fetch(url, {
       headers: {
         'User-Agent': 'OG-Image-Generator',
       },
     });
     
     if (!response.ok) {
+      console.error(`[OG] Failed to fetch market data: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch market data: ${response.status}`);
     }
     
     const data = await response.json();
+    console.log(`[OG] Raw API response:`, {
+      success: data.success,
+      fromCache: data.fromCache,
+      marketExists: !!data.market,
+      marketData: data.market ? {
+        question: data.market.question?.substring(0, 50) + '...',
+        yesCount: data.market.yesCount,
+        noCount: data.market.noCount,
+        yesTotal: data.market.yesTotal,
+        noTotal: data.market.noTotal,
+        closeTime: data.market.closeTime,
+      } : null
+    });
+    
     return data.market;
   } catch (error) {
-    console.error('Error fetching market data:', error);
+    console.error('[OG] Error fetching market data:', error);
     return null;
   }
 }
@@ -95,17 +113,38 @@ export async function GET(
       );
     }
 
-    // Convert from wei to USDC (6 decimals)
+    // Convert from wei to USDC (6 decimals) for display
     const yesTotal = parseFloat(marketData.yesTotal) / 1000000;
     const noTotal = parseFloat(marketData.noTotal) / 1000000;
     const totalPool = yesTotal + noTotal;
     
-    const yesPercentage = totalPool > 0 ? Math.round((yesTotal / totalPool) * 100) : 50;
-    const noPercentage = totalPool > 0 ? Math.round((noTotal / totalPool) * 100) : 50;
+    // Calculate percentages based on bet counts (matching MarketCard logic)
+    const totalBets = marketData.yesCount + marketData.noCount;
+    let yesPercentage = 50;
+    let noPercentage = 50;
+    
+    if (totalBets > 0) {
+      yesPercentage = Math.round((marketData.yesCount / totalBets) * 100);
+      noPercentage = 100 - yesPercentage;
+    }
     
     const question = truncateText(marketData.question, 120);
     const timeRemaining = formatTimeRemaining(marketData.closeTime);
     const totalPoolFormatted = formatUSDC(totalPool);
+
+    // Debug logging for calculated values
+    console.log(`[OG] Market ${id} calculated values:`, {
+      question: question,
+      totalBets: totalBets,
+      yesCount: marketData.yesCount,
+      noCount: marketData.noCount,
+      yesPercentage: yesPercentage,
+      noPercentage: noPercentage,
+      totalPool: totalPool,
+      totalPoolFormatted: totalPoolFormatted,
+      timeRemaining: timeRemaining,
+      closeTime: marketData.closeTime,
+    });
 
     return new ImageResponse(
       (
