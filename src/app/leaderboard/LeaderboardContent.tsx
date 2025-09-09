@@ -164,7 +164,7 @@ export default function LeaderboardContent() {
                           <span className="text-2xl">{getRankIcon(entry.rank)}</span>
                           <div>
                             <div className="font-mono text-sm text-[#ffffff]">
-                              {formatAddress(entry.userAddress)}
+                              {entry.displayName || formatAddress(entry.userAddress)}
                             </div>
                             <div className={`text-sm font-semibold ${getWinRateColor(entry.winRate)}`}>
                               {entry.winRate.toFixed(1)}% accuracy
@@ -187,7 +187,7 @@ export default function LeaderboardContent() {
                       <div className="bg-gradient-to-t from-gray-400/20 to-gray-400/10 border border-gray-400/30 rounded-xl p-4 mb-2 h-24 flex flex-col justify-end">
                         <div className="text-2xl mb-1">🥈</div>
                         <div className="font-mono text-sm text-[#ffffff]">
-                          {formatAddress(leaderboard[1].userAddress)}
+                          {leaderboard[1].displayName || formatAddress(leaderboard[1].userAddress)}
                         </div>
                       </div>
                       <div className={`text-sm font-semibold ${getWinRateColor(leaderboard[1].winRate)}`}>
@@ -204,7 +204,7 @@ export default function LeaderboardContent() {
                     <div className="bg-gradient-to-t from-yellow-400/20 to-yellow-400/10 border border-yellow-400/30 rounded-xl p-4 mb-2 h-32 flex flex-col justify-end">
                       <div className="text-3xl mb-1">🥇</div>
                       <div className="font-mono text-sm text-[#ffffff]">
-                        {formatAddress(leaderboard[0].userAddress)}
+                        {leaderboard[0].displayName || formatAddress(leaderboard[0].userAddress)}
                       </div>
                     </div>
                     <div className={`text-sm font-semibold ${getWinRateColor(leaderboard[0].winRate)}`}>
@@ -221,7 +221,7 @@ export default function LeaderboardContent() {
                       <div className="bg-gradient-to-t from-orange-400/20 to-orange-400/10 border border-orange-400/30 rounded-xl p-4 mb-2 h-20 flex flex-col justify-end">
                         <div className="text-2xl mb-1">🥉</div>
                         <div className="font-mono text-sm text-[#ffffff]">
-                          {formatAddress(leaderboard[2].userAddress)}
+                          {leaderboard[2].displayName || formatAddress(leaderboard[2].userAddress)}
                         </div>
                       </div>
                       <div className={`text-sm font-semibold ${getWinRateColor(leaderboard[2].winRate)}`}>
@@ -257,7 +257,7 @@ export default function LeaderboardContent() {
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="font-mono text-sm text-[#ffffff] truncate">
-                            {formatAddress(entry.userAddress)}
+                            {entry.displayName || formatAddress(entry.userAddress)}
                           </div>
                           <div className="text-xs text-[#808080]">
                             {entry.correctPredictions} correct out of {entry.totalBets} predictions

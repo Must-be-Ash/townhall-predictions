@@ -49,3 +49,6 @@ next-env.d.ts
 .gas-report
 .gas-snapshot
 .env.foundry
+
+# scripts
+/scripts/

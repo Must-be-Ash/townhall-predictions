@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
-import { User } from '@/lib/models/User';
+import { createOrUpdateUserOnLogin, getUserDisplayName } from '@/lib/models/User';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, evmAddress, displayName } = await request.json();
+    const { email, evmAddress } = await request.json();
 
     if (!email || !evmAddress) {
       return NextResponse.json(
@@ -15,48 +15,23 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
-    // Try to find existing user by email or evmAddress
-    let user = await User.findOne({
-      $or: [
-        { email: email.toLowerCase() },
-        { evmAddress: evmAddress.toLowerCase() }
-      ]
-    });
+    // Use the new createOrUpdateUserOnLogin function
+    const user = await createOrUpdateUserOnLogin(email, evmAddress);
 
-    if (user) {
-      // Update existing user
-      user.email = email.toLowerCase();
-      user.evmAddress = evmAddress.toLowerCase();
-      user.displayName = displayName || user.displayName;
-      user.lastActive = new Date();
-      await user.save();
-      
-      console.log(`✅ Updated existing user: ${evmAddress}`);
-    } else {
-      // Create new user
-      user = new User({
-        email: email.toLowerCase(),
-        evmAddress: evmAddress.toLowerCase(),
-        displayName: displayName,
-        isAdmin: false,
-        totalBets: 0,
-        totalWinnings: "0",
-        autoFundingStatus: 'pending'
-      });
-      await user.save();
-      
-      console.log(`✅ Created new user: ${evmAddress}`);
-    }
+    const isNewUser = user.createdAt.getTime() > (Date.now() - 5000); // Created within last 5 seconds
+
+    console.log(`✅ ${isNewUser ? 'Created new' : 'Updated existing'} user: ${user.username} (${user.email})`);
 
     return NextResponse.json({
       success: true,
       user: {
         email: user.email,
         evmAddress: user.evmAddress,
-        displayName: user.displayName,
+        username: user.username,
+        displayName: getUserDisplayName(user),
         isAdmin: user.isAdmin,
         autoFundingStatus: user.autoFundingStatus,
-        isNewUser: !user.lastActive || user.autoFundingStatus === 'pending'
+        isNewUser
       }
     });
 

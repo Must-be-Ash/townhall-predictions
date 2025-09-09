@@ -31,6 +31,28 @@ export function AuthWithAutoFunding({ onAuthSuccess }: AuthWithAutoFundingProps)
     setError('');
 
     try {
+      // Save the email immediately to database (without wallet address for now)
+      console.log('📧 Saving email immediately:', email);
+      
+      try {
+        const earlyUserResponse = await fetch('/api/users/save-email-early', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        
+        const earlyUserResult = await earlyUserResponse.json();
+        if (earlyUserResult.success) {
+          console.log('✅ Email saved early:', earlyUserResult.message);
+        } else {
+          console.warn('⚠️ Early email save failed:', earlyUserResult.error);
+        }
+      } catch (emailSaveError) {
+        console.warn('⚠️ Early email save error:', emailSaveError);
+        // Continue with auth flow even if early save fails
+      }
+
+      // Continue with CDP authentication
       const result = await signInWithEmail({ email });
       setFlowId(result.flowId);
       setStep('otp');

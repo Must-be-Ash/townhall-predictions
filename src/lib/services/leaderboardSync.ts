@@ -1,6 +1,6 @@
 import connectDB from '@/lib/db';
 import { BetEvent } from '@/lib/models/BetEvent';
-import { User } from '@/lib/models/User';
+import { User, getUserDisplayName, IUser } from '@/lib/models/User';
 import { MarketCache } from '@/lib/models/MarketCache';
 import { LeaderboardCache, ILeaderboardEntry, ILeaderboardCache } from '@/lib/models/LeaderboardCache';
 
@@ -18,8 +18,8 @@ export async function calculateLeaderboardFromScratch(): Promise<ILeaderboardEnt
       resolved: true 
     }).lean();
     
-    // Get user display names
-    const users = await User.find({}).lean();
+    // Get user data for display names and usernames
+    const users = await User.find({});
     const userMap = new Map(users.map(u => [u.evmAddress.toLowerCase(), u]));
 
     // Create market outcome map
@@ -32,7 +32,7 @@ export async function calculateLeaderboardFromScratch(): Promise<ILeaderboardEnt
       totalBets: number;
       correctPredictions: number;
       totalWinnings: number;
-      displayName?: string;
+      user?: IUser; // Store full user object for display name logic
       lastBetTimestamp?: Date;
     }>();
 
@@ -49,7 +49,7 @@ export async function calculateLeaderboardFromScratch(): Promise<ILeaderboardEnt
           totalBets: 0,
           correctPredictions: 0,
           totalWinnings: 0,
-          displayName: userMap.get(userAddress)?.displayName,
+          user: userMap.get(userAddress),
           lastBetTimestamp: bet.timestamp
         });
       }
@@ -76,16 +76,27 @@ export async function calculateLeaderboardFromScratch(): Promise<ILeaderboardEnt
     // Convert to leaderboard entries and filter
     const leaderboardEntries: ILeaderboardEntry[] = Array.from(userStats.entries())
       .filter(([, stats]) => stats.totalBets >= 1) // Minimum 1 bet to qualify
-      .map(([address, stats]) => ({
-        userAddress: address,
-        displayName: stats.displayName,
-        totalBets: stats.totalBets,
-        correctPredictions: stats.correctPredictions,
-        winRate: stats.totalBets > 0 ? (stats.correctPredictions / stats.totalBets) * 100 : 0,
-        totalWinnings: stats.totalWinnings.toFixed(2),
-        rank: 0, // Will be set after sorting
-        lastBetTimestamp: stats.lastBetTimestamp
-      }))
+      .map(([address, stats]) => {
+        // Generate display name with fallback logic
+        let displayName;
+        if (stats.user) {
+          displayName = getUserDisplayName(stats.user);
+        } else {
+          // Fallback for users not in User table
+          displayName = `${address.slice(0, 6)}...${address.slice(-4)}`;
+        }
+
+        return {
+          userAddress: address,
+          displayName,
+          totalBets: stats.totalBets,
+          correctPredictions: stats.correctPredictions,
+          winRate: stats.totalBets > 0 ? (stats.correctPredictions / stats.totalBets) * 100 : 0,
+          totalWinnings: stats.totalWinnings.toFixed(2),
+          rank: 0, // Will be set after sorting
+          lastBetTimestamp: stats.lastBetTimestamp
+        };
+      })
       .sort((a, b) => {
         // Sort by win rate first, then by total correct predictions
         if (Math.abs(a.winRate - b.winRate) < 0.01) {

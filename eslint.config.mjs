@@ -19,6 +19,7 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
       "contracts/**", // Ignore smart contract files and dependencies
+      "scripts/**", // Ignore scripts directory
     ],
   },
 ];

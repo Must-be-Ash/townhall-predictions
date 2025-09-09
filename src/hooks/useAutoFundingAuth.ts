@@ -199,18 +199,19 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
     const verificationResult = await verifyEmailOTP(params);
     console.log('✅ Email OTP verified:', verificationResult);
 
-    // Check if this is a new user and trigger funding
-    if (verificationResult.isNewUser && verificationResult.user?.evmAccounts?.[0]) {
+    // Always create/update user record for any authenticated user
+    if (verificationResult.user?.evmAccounts?.[0]) {
       const userAddress = verificationResult.user.evmAccounts[0];
       const userId = verificationResult.user.userId;
       
       // Create/update user record in database first
       try {
+        console.log('👤 Processing user record for:', userAddress);
         const userResponse = await fetch('/api/users/create-or-update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: (verificationResult.user as { email?: string })?.email || '',
+            email: verificationResult.user?.authenticationMethods?.email?.email || '',
             evmAddress: userAddress,
             displayName: (verificationResult.user as { displayName?: string })?.displayName || ''
           })
@@ -219,26 +220,36 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
         const userData = await userResponse.json();
         console.log('👤 User record processed:', userData);
         
-        // Check if user has already been funded
-        if (userData.user?.autoFundingStatus === 'completed') {
-          console.log('✅ User already funded - skipping auto-funding');
-          setFundingStatus({ status: 'idle' });
-          setCurrentUser(null);
-          return verificationResult;
+        // Only trigger funding for new users
+        if (verificationResult.isNewUser) {
+          // Check if user has already been funded
+          if (userData.user?.autoFundingStatus === 'completed') {
+            console.log('✅ User already funded - skipping auto-funding');
+            setFundingStatus({ status: 'idle' });
+            setCurrentUser(null);
+            return verificationResult;
+          }
         }
       } catch (error) {
         console.warn('⚠️ Failed to process user record:', error);
       }
       
-      // Store user info for potential retries
-      setCurrentUser({ address: userAddress, id: userId });
-      
-      console.log(`🆕 New user detected! Triggering auto-funding for ${userAddress}`);
-      
-      // Don't await this - let it run in background while user proceeds
-      triggerAutoFunding(userAddress, userId);
+      // Only trigger funding for new users
+      if (verificationResult.isNewUser) {
+        // Store user info for potential retries
+        setCurrentUser({ address: userAddress, id: userId });
+        
+        console.log(`🆕 New user detected! Triggering auto-funding for ${userAddress}`);
+        
+        // Don't await this - let it run in background while user proceeds
+        triggerAutoFunding(userAddress, userId);
+      } else {
+        console.log('👤 Returning user - no auto-funding needed');
+        setFundingStatus({ status: 'idle' });
+        setCurrentUser(null);
+      }
     } else {
-      console.log('👤 Returning user - no auto-funding needed');
+      console.log('👤 No user data in verification result');
       setFundingStatus({ status: 'idle' });
       setCurrentUser(null);
     }
@@ -253,20 +264,57 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
     const verificationResult = await verifySmsOTP(params);
     console.log('✅ SMS OTP verified:', verificationResult);
 
-    // Check if this is a new user and trigger funding
-    if (verificationResult.isNewUser && verificationResult.user?.evmAccounts?.[0]) {
+    // Always create/update user record for any authenticated user
+    if (verificationResult.user?.evmAccounts?.[0]) {
       const userAddress = verificationResult.user.evmAccounts[0];
       const userId = verificationResult.user.userId;
       
-      // Store user info for potential retries
-      setCurrentUser({ address: userAddress, id: userId });
+      // Create/update user record in database first
+      try {
+        console.log('👤 Processing user record for:', userAddress);
+        const userResponse = await fetch('/api/users/create-or-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: verificationResult.user?.authenticationMethods?.sms?.phoneNumber || `sms_user_${userAddress.slice(-8)}@phone.local`, // Create pseudo-email for SMS users
+            evmAddress: userAddress,
+            displayName: (verificationResult.user as { displayName?: string })?.displayName || ''
+          })
+        });
+        
+        const userData = await userResponse.json();
+        console.log('👤 User record processed:', userData);
+        
+        // Only trigger funding for new users
+        if (verificationResult.isNewUser) {
+          // Check if user has already been funded
+          if (userData.user?.autoFundingStatus === 'completed') {
+            console.log('✅ User already funded - skipping auto-funding');
+            setFundingStatus({ status: 'idle' });
+            setCurrentUser(null);
+            return verificationResult;
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to process user record:', error);
+      }
       
-      console.log(`🆕 New user detected! Triggering auto-funding for ${userAddress}`);
-      
-      // Don't await this - let it run in background while user proceeds
-      triggerAutoFunding(userAddress, userId);
+      // Only trigger funding for new users
+      if (verificationResult.isNewUser) {
+        // Store user info for potential retries
+        setCurrentUser({ address: userAddress, id: userId });
+        
+        console.log(`🆕 New user detected! Triggering auto-funding for ${userAddress}`);
+        
+        // Don't await this - let it run in background while user proceeds
+        triggerAutoFunding(userAddress, userId);
+      } else {
+        console.log('👤 Returning user - no auto-funding needed');
+        setFundingStatus({ status: 'idle' });
+        setCurrentUser(null);
+      }
     } else {
-      console.log('👤 Returning user - no auto-funding needed');
+      console.log('👤 No user data in verification result');
       setFundingStatus({ status: 'idle' });
       setCurrentUser(null);
     }

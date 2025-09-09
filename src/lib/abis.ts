@@ -174,7 +174,8 @@ export const TOWN_HALL_PREDICTIONS_ABI = [
     "inputs": [
       {"name": "marketId", "type": "uint256", "indexed": true},
       {"name": "user", "type": "address", "indexed": true},
-      {"name": "outcome", "type": "bool", "indexed": false}
+      {"name": "outcome", "type": "bool", "indexed": false},
+      {"name": "amount", "type": "uint256", "indexed": false}
     ]
   },
   {

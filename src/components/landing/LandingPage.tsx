@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { AuthButton } from "@coinbase/cdp-react/components/AuthButton";
+import { AuthWithAutoFunding } from "@/components/auth/AuthWithAutoFunding";
 import { TextShimmer } from "@/components/ui/text-shimmer";
 
 export function LandingPage() {
@@ -38,9 +38,9 @@ export function LandingPage() {
               prediction market fun without the risks
             </TextShimmer>
           </div>
-          {/* Login Button */}
+          {/* Login Form */}
           <div className="w-full">
-            <AuthButton />
+            <AuthWithAutoFunding onAuthSuccess={() => window.location.reload()} />
           </div>
         </div>
       </div>

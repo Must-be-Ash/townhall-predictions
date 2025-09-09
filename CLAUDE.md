@@ -23,7 +23,7 @@ This is a full-stack Web3 application with three main components:
 
 ### Smart Contracts (Foundry)
 - **Framework**: Foundry with Solidity 0.8.26
-- **Deployed Contract**: `TownHallPredictions.sol` at `0xD29171878ae652B72b140706A8AcB1E1C39A29c9` on Base Sepolia
+- **Deployed Contract**: `TownHallPredictions.sol` at `0x7fDc0208956aCDB444dD9130f2F11553f02C96E0` on Base Sepolia
 - **Token**: USDC at `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (Base Sepolia)
 - **Dependencies**: OpenZeppelin contracts for security patterns
 
@@ -150,8 +150,33 @@ ETHERSCAN_API_KEY=your_etherscan_api_key
 ## Contract Addresses
 
 Current deployment on Base Sepolia (Chain ID: 84532):
-- **TownHallPredictions**: `0x40B607DAed835Bf2126CB1f8762f3B09D1dde710`
+- **TownHallPredictions**: `0x7fDc0208956aCDB444dD9130f2F11553f02C96E0`
 - **USDC**: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+
+  Contract Deployment Timeline & Activity
+
+  Contract Creation:
+  - Transaction Hash: 0x6f3e6bfec85f562cb880beb20cfb3ce90b55a444dbd8b99362e52fcc9b3fcf20
+  - Block: 30152227
+  - Date: August 24, 2025, 09:59:02 PM +UTC (15 days ago from screenshot date)
+  - Deployed by: 0x3aDAc4266a8B070639B96b03Dd78babBa152794B
+  - Contract Address: 0x7fDc0208956aCDB444dD9130f2F11553f02C96E0
+
+  Last Activity:
+  - Transaction Hash: 0xa3c03e79b93c8de41f9342c0584f86e572b62a4176e089d090debed5e8d502a3
+  - Block: 30835759
+  - Date: September 9, 2025, 05:43:26 PM +UTC (58 mins ago from screenshot)
+  - Activity: USDC transfer (1 USDC) to the contract
+  - From: 0x306ADA38283B793a206Ff41231633119Cd7fCe6
+
+  Key Insights for Future Event Syncing
+
+  1. Search Range: Events should exist between blocks 30152227 (contract creation) and 30835759 (last
+  activity) - a much smaller range than what I was searching!
+  2. Contract is Active: Recent USDC transfer shows the contract is being used
+  3. Block Range Precision: Instead of searching 200k+ recent blocks, I should search the ~683k blocks
+  between contract deployment and current block
+
 
 Previous deployments:
 - Old contract (deprecated): `0xD29171878ae652B72b140706A8AcB1E1C39A29c9`
