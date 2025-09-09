@@ -343,7 +343,7 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
       <div className="mb-4">
         <div className="flex items-center justify-between text-sm text-[#808080] mb-2">
           <span className="flex items-center">
-            Ends {closeTime.toLocaleDateString('en-US', { 
+            {market.resolved || market.voided || new Date() > closeTime ? 'Ended' : 'Ends'} {closeTime.toLocaleDateString('en-US', { 
               month: 'short', 
               day: 'numeric', 
               hour: 'numeric', 
@@ -498,6 +498,12 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
               `You won ${formatUSDC(userWinnings)}!`
             )}
           </button>
+        </div>
+      ) : market.resolved && evmAddress && userBet?.hasBet && userWinnings === 0n ? (
+        <div className="text-center">
+          <span className="w-full bg-red-600 text-[#ffffff] font-medium py-3 px-4 rounded-xl inline-block">
+            You Lost
+          </span>
         </div>
       ) : (
         <div className="text-center py-3">
