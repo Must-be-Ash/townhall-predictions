@@ -9,6 +9,7 @@ export interface ILeaderboardEntry {
   totalWinnings: string;
   rank: number;
   lastBetTimestamp?: Date;
+  avgEarlyParticipation?: number; // Average percentage of market lifetime when bets were placed
 }
 
 export interface ILeaderboardCache {
@@ -54,6 +55,9 @@ const LeaderboardEntrySchema = new mongoose.Schema<ILeaderboardEntry>({
   },
   lastBetTimestamp: { 
     type: Date 
+  },
+  avgEarlyParticipation: {
+    type: Number
   }
 });
 

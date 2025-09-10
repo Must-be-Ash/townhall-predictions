@@ -108,7 +108,7 @@ export default function LeaderboardContent() {
     );
   }
 
-  const { leaderboard, totalUsers } = leaderboardData || { leaderboard: [], totalUsers: 0 };
+  const { leaderboard } = leaderboardData || { leaderboard: [] };
 
   return (
     <div className="min-h-screen bg-[#1a1a1a]">
@@ -120,11 +120,9 @@ export default function LeaderboardContent() {
           <h1 className="text-3xl md:text-4xl font-bold text-[#ffffff] mb-2 font-[var(--font-climate-crisis)]">
             <span className="md:hidden">Leaderboard </span>
           </h1>
-          <p className="text-[#808080] text-sm md:text-base">
-            Top prediction performers ranked by accuracy
-          </p>
-          <div className="text-xs text-[#606060] mt-2">
-            {totalUsers} active predictor{totalUsers !== 1 ? 's' : ''}
+
+          <div className="text-xs text-[#606060] mt-2 max-w-2xl mx-auto">
+            When users have identical win rates & correct predictions, we break the ties using &quot;early participation score&quot; - how early they bet relative to each market&apos;s lifetime. Earlier bettors face more uncertainty and deserve higher ranking.
           </div>
         </div>
 

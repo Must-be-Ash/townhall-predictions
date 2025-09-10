@@ -72,6 +72,15 @@ export function TradingRules() {
         </div>
       </section>
 
+      {/* Leaderboard Tiebreaking */}
+      <section>
+        <h3 className="text-white font-semibold mb-3 text-base">Leaderboard Ranking</h3>
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+          <div className="font-medium text-yellow-400 mb-1">Tiebreaker Rules</div>
+          <div className="text-xs">When users have identical win rates & correct predictions, we break the ties using &quot;early participation score&quot; - how early they bet relative to each market&apos;s lifetime. Earlier bettors face more uncertainty and deserve higher ranking.</div>
+        </div>
+      </section>
+
       {/* Pro Tip */}
       <section className="pt-2 border-t border-[#3a3a3a]">
         <div className="bg-[#1a1a1a] border border-[#404040] rounded-lg p-3">
