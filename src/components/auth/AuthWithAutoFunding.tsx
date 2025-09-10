@@ -23,16 +23,26 @@ export function AuthWithAutoFunding({ onAuthSuccess }: AuthWithAutoFundingProps)
   // Show funding modal when funding is in progress or completed/failed
   const showFundingModal = fundingStatus.status !== 'idle';
 
+  const validateCoinbaseEmail = (email: string): boolean => {
+    return email.toLowerCase().endsWith('@coinbase.com');
+  };
+
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
+
+    // Validate Coinbase email before proceeding
+    if (!validateCoinbaseEmail(email)) {
+      setError('This application is restricted to invite only.');
+      return;
+    }
 
     setLoading(true);
     setError('');
 
     try {
       // Save the email immediately to database (without wallet address for now)
-      console.log('📧 Saving email immediately:', email);
+      console.log('📧 Saving email immediately');
       
       try {
         const earlyUserResponse = await fetch('/api/users/save-email-early', {
@@ -96,15 +106,8 @@ export function AuthWithAutoFunding({ onAuthSuccess }: AuthWithAutoFundingProps)
 
   return (
     <>
-      <div className="max-w-md mx-auto bg-[#2a2a2a] rounded-2xl border border-[#3a3a3a] p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#ffffff] mb-4 font-[var(--font-climate-crisis)]">
-            Townhall Predictions
-          </h1>
-          <p className="text-[#808080]">
-            Sign in to start making predictions
-          </p>
-        </div>
+      <div className="w-full min-w-[300px] sm:min-w-[400px] max-w-md sm:max-w-2xl mx-auto bg-[#2a2a2a] rounded-2xl border border-[#3a3a3a] p-4 sm:p-6">
+
 
         {step === 'email' && (
           <form onSubmit={handleEmailSubmit} className="space-y-4">
@@ -117,7 +120,7 @@ export function AuthWithAutoFunding({ onAuthSuccess }: AuthWithAutoFundingProps)
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
+                placeholder="name@coinbase.com"
                 required
                 disabled={loading}
                 className="w-full px-4 py-3 bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg text-[#ffffff] placeholder-[#808080] focus:border-blue-500 focus:outline-none transition-colors"
@@ -132,10 +135,10 @@ export function AuthWithAutoFunding({ onAuthSuccess }: AuthWithAutoFundingProps)
 
             <button
               type="submit"
-              disabled={loading || !email}
+              disabled={loading || !email || !validateCoinbaseEmail(email)}
               className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-[#3a3a3a] disabled:cursor-not-allowed text-white font-bold rounded-lg transition-all"
             >
-              {loading ? 'Sending Code...' : 'Send Verification Code'}
+              {loading ? 'Sending Code...' : (email && !validateCoinbaseEmail(email) ? 'Invite Only' : 'Login')}
             </button>
           </form>
         )}

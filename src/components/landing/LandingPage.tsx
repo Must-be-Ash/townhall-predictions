@@ -13,7 +13,7 @@ export function LandingPage() {
     <div className="min-h-screen bg-[#1a1a1a] flex flex-col items-center justify-between px-4 py-8">
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center">
-        <div className="max-w-md w-full text-center space-y-4">
+        <div className="w-full text-center space-y-4">
           {/* Logo */}
           <div className="flex justify-center">
             <Image

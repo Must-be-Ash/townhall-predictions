@@ -16,19 +16,32 @@ export function BrandFooter() {
   return (
     <footer className="hidden md:block fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
       <div className="flex items-center justify-center py-4 px-4 bg-[#1a1a1a]/80 backdrop-blur-sm">
-        <div className="flex items-center gap-3 text-xs text-[#DBDBDB] pointer-events-auto">
+        <div className="flex items-center gap-4 text-[10px] text-[#999] pointer-events-auto">
           {/* Logo */}
           <Image
             src="/logo.png"
             alt="Prediction Panda"
-            width={20}
-            height={20}
-            className="w-5 h-5"
+            width={16}
+            height={16}
+            className="w-4 h-4"
           />
           
-          {/* Copyright Text */}
-          <p className="text-center">
-            © 2025 Townhall.lol
+          {/* Privacy Text */}
+          <p>
+            By using this app, you agree to{' '}
+            <a 
+              href="https://www.coinbase.com/legal/privacy" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 "
+            >
+              Coinbase&apos;s privacy policy
+            </a>
+
+          
+          
+          {/* Copyright */}
+          &nbsp;© 2025 Townhall.lol
           </p>
         </div>
       </div>
