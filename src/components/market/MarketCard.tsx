@@ -501,9 +501,15 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
         </div>
       ) : market.resolved && evmAddress && userBet?.hasBet && userWinnings === 0n ? (
         <div className="text-center">
-          <span className="w-full bg-red-600 text-[#ffffff] font-medium py-3 px-4 rounded-xl inline-block">
-            You Lost
-          </span>
+          {userBet.withdrawn && userBet.outcome === market.winningOutcome ? (
+            <span className="w-full bg-green-600 text-[#ffffff] font-medium py-3 px-4 rounded-xl inline-block">
+              Winnings Claimed
+            </span>
+          ) : (
+            <span className="w-full bg-red-600 text-[#ffffff] font-medium py-3 px-4 rounded-xl inline-block">
+              You Lost
+            </span>
+          )}
         </div>
       ) : (
         <div className="text-center py-3">

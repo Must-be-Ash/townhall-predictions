@@ -5,6 +5,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { TradingRules } from './TradingRules';
 import { UserJourneyGuide } from './UserJourneyGuide';
+import { WalletInfo } from './WalletInfo';
 
 interface InfoModalProps {
   isOpen: boolean;
@@ -12,7 +13,7 @@ interface InfoModalProps {
 }
 
 export function InfoModal({ isOpen, onClose }: InfoModalProps) {
-  const [activeTab, setActiveTab] = useState<'rules' | 'guide'>('rules');
+  const [activeTab, setActiveTab] = useState<'rules' | 'guide' | 'wallet'>('guide');
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -79,11 +80,22 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
                     <span className="hidden sm:inline">Getting Started</span>
                     <span className="sm:hidden">Guide</span>
                   </button>
+                  <button
+                    onClick={() => setActiveTab('wallet')}
+                    className={`flex-1 flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                      activeTab === 'wallet'
+                        ? 'bg-gradient-to-r from-[#4a4a4a] to-[#606060] text-white shadow-lg'
+                        : 'text-[#808080] hover:text-white'
+                    }`}
+                  >
+                    <span className="hidden sm:inline">Your Wallet</span>
+                    <span className="sm:hidden">Wallet</span>
+                  </button>
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[#404040] scrollbar-track-transparent pr-2 -mr-2">
-                  {activeTab === 'rules' ? <TradingRules /> : <UserJourneyGuide />}
+                  {activeTab === 'rules' ? <TradingRules /> : activeTab === 'guide' ? <UserJourneyGuide /> : <WalletInfo />}
                 </div>
 
                 {/* Footer */}
