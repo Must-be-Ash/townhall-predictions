@@ -47,7 +47,6 @@ const BetEventSchema = new mongoose.Schema<IBetEvent>({
 // Create indexes for better query performance
 BetEventSchema.index({ marketId: 1, timestamp: -1 });
 BetEventSchema.index({ userAddress: 1 });
-BetEventSchema.index({ transactionHash: 1 });
 BetEventSchema.index({ timestamp: -1 });
 
 export const BetEvent = mongoose.models.BetEvent || 

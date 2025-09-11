@@ -495,7 +495,7 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
                 Withdrawing...
               </span>
             ) : (
-              `You won ${formatUSDC(userWinnings)}!`
+              `Resolved • ${market.winningOutcome ? 'YES' : 'NO'} • You Won ${formatUSDC(userWinnings)}!`
             )}
           </button>
         </div>
@@ -503,11 +503,11 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
         <div className="text-center">
           {userBet.withdrawn && userBet.outcome === market.winningOutcome ? (
             <span className="w-full bg-green-600 text-[#ffffff] font-medium py-3 px-4 rounded-xl inline-block">
-              Winnings Claimed
+              Resolved • {market.winningOutcome ? 'YES' : 'NO'} • Winnings Claimed
             </span>
           ) : (
             <span className="w-full bg-red-600 text-[#ffffff] font-medium py-3 px-4 rounded-xl inline-block">
-              You Lost
+              Resolved • {market.winningOutcome ? 'YES' : 'NO'} • You Lost
             </span>
           )}
         </div>
@@ -516,7 +516,7 @@ function MarketCardComponent({ marketId, hideDetailsLink = false, isNewMarket = 
           <span className={`text-sm font-medium ${
             market.resolved ? 'text-green-400' : market.voided ? 'text-yellow-400' : 'text-gray-400'
           }`}>
-            {market.resolved ? 'Resolved' : market.voided ? 'Voided' : 'Closed'}
+            {market.resolved ? `Resolved • ${market.winningOutcome ? 'YES' : 'NO'}` : market.voided ? 'Voided' : 'Closed'}
           </span>
         </div>
       )}
