@@ -14,6 +14,7 @@ export interface IMarketCache {
   createdAt: Date;
   lastUpdated: Date;
   participants: string[]; // Array of addresses
+  creationBlock?: number; // Block number where market was created (for precise event syncing)
 }
 
 const MarketCacheSchema = new mongoose.Schema<IMarketCache>({
@@ -66,10 +67,13 @@ const MarketCacheSchema = new mongoose.Schema<IMarketCache>({
     type: Date, 
     default: Date.now 
   },
-  participants: [{ 
+  participants: [{
     type: String,
-    lowercase: true 
+    lowercase: true
   }],
+  creationBlock: {
+    type: Number
+  },
 });
 
 // Create indexes for better query performance
