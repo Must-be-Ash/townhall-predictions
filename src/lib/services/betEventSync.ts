@@ -263,7 +263,7 @@ export async function syncNewBetEvents(triggeredBy: 'cron' | 'manual' | 'admin' 
     const currentBlockNumber = Number(currentBlock);
 
     // Simple recent-blocks-only approach (like working script)
-    const RECENT_BLOCKS = 2500; // Scan last ~1.5 hours of activity (2 sec block time)
+    const RECENT_BLOCKS = 1200; // Scan last ~40 minutes of activity (2 sec block time)
     const fromBlock = Math.max(currentBlockNumber - RECENT_BLOCKS, 30333063); // Contract deployment minimum
     const toBlock = currentBlockNumber;
 
