@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from 'react';
-import { useSignInWithEmail } from '@coinbase/cdp-hooks';
+import { useState, useEffect } from 'react';
+import { useSignInWithEmail, useIsSignedIn, useCurrentUser } from '@coinbase/cdp-hooks';
 import { useAutoFundingAuth } from '@/hooks/useAutoFundingAuth';
 import { FundingProgressModal } from '@/components/ui/FundingProgressModal';
+import { useRouter } from 'next/navigation';
 
 interface AuthWithAutoFundingProps {
   onAuthSuccess?: () => void;
@@ -12,16 +13,30 @@ interface AuthWithAutoFundingProps {
 export function AuthWithAutoFunding({ onAuthSuccess }: AuthWithAutoFundingProps) {
   const { signInWithEmail } = useSignInWithEmail();
   const { verifyEmailOTPWithFunding, fundingStatus, retryFunding } = useAutoFundingAuth();
-  
+  const { isSignedIn } = useIsSignedIn();
+  const { currentUser } = useCurrentUser();
+  const router = useRouter();
+
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [flowId, setFlowId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  
+  const [authCompleted, setAuthCompleted] = useState(false);
+
   // Show funding modal when funding is in progress or completed/failed
   const showFundingModal = fundingStatus.status !== 'idle';
+
+  // Check if user is already signed in and handle accordingly
+  useEffect(() => {
+    if (isSignedIn && currentUser && !authCompleted) {
+      console.log('User already signed in, redirecting...');
+      // Instead of window.location.reload(), use router.refresh() for mobile compatibility
+      router.refresh();
+      onAuthSuccess?.();
+    }
+  }, [isSignedIn, currentUser, authCompleted, router, onAuthSuccess]);
 
   const validateCoinbaseEmail = (email: string): boolean => {
     return email.toLowerCase().endsWith('@coinbase.com');
@@ -85,15 +100,21 @@ export function AuthWithAutoFunding({ onAuthSuccess }: AuthWithAutoFundingProps)
       // This will trigger auto-funding for new users
       const result = await verifyEmailOTPWithFunding({ flowId, otp });
       console.log('Authentication successful:', result);
-      
+
+      // Mark authentication as completed to prevent re-checking
+      setAuthCompleted(true);
+
       // If user is returning (no auto-funding), proceed immediately
       if (fundingStatus.status === 'idle') {
+        // Use router.refresh() for better mobile compatibility
+        router.refresh();
         onAuthSuccess?.();
       }
       // For new users, onAuthSuccess will be called when funding modal is closed
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to verify code';
       setError(errorMessage);
+      setAuthCompleted(false);
     } finally {
       setLoading(false);
     }
@@ -101,8 +122,21 @@ export function AuthWithAutoFunding({ onAuthSuccess }: AuthWithAutoFundingProps)
 
   const handleFundingModalClose = () => {
     // Call onAuthSuccess when user closes the funding modal
+    // Use router.refresh() for better mobile compatibility
+    router.refresh();
     onAuthSuccess?.();
   };
+
+  // If user is already signed in, don't show the auth form
+  if (isSignedIn && currentUser) {
+    return (
+      <div className="w-full min-w-[300px] sm:min-w-[400px] max-w-md sm:max-w-2xl mx-auto bg-[#2a2a2a] rounded-2xl border border-[#3a3a3a] p-4 sm:p-6">
+        <div className="text-center">
+          <p className="text-[#c0c0c0]">You are already signed in. Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

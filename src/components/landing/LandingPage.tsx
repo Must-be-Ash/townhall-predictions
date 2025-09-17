@@ -40,7 +40,10 @@ export function LandingPage() {
           </div>
           {/* Login Form */}
           <div className="w-full">
-            <AuthWithAutoFunding onAuthSuccess={() => window.location.reload()} />
+            <AuthWithAutoFunding onAuthSuccess={() => {
+              // Don't use window.location.reload() - let the component handle navigation
+              console.log('Authentication successful');
+            }} />
           </div>
         </div>
       </div>

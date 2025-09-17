@@ -14,9 +14,9 @@
     "clean-marketcaches": "tsx scripts/clean-marketcaches.ts"
   },
   "dependencies": {
-    "@coinbase/cdp-core": "^0.0.23",
-    "@coinbase/cdp-hooks": "^0.0.23",
-    "@coinbase/cdp-react": "^0.0.23",
+    "@coinbase/cdp-core": "^0.0.33",
+    "@coinbase/cdp-hooks": "^0.0.33",
+    "@coinbase/cdp-react": "^0.0.33",
     "@coinbase/coinbase-sdk": "^0.25.0",
     "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",
