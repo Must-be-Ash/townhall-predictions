@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/sync-bet-events",
+      "schedule": "*/2 * * * *"
+    }
+  ]
+}

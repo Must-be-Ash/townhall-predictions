@@ -1,6 +1,7 @@
 import { createPublicClient, http, getContract, parseAbiItem } from "viem";
 import { baseSepolia } from "viem/chains";
 import { BetEvent } from "@/lib/models/BetEvent";
+import { SyncLog } from "@/lib/models/SyncLog";
 import connectDB from "@/lib/db";
 import { CONTRACT_ADDRESSES } from "@/lib/constants";
 import { TOWN_HALL_PREDICTIONS_ABI } from "@/lib/abis";
@@ -199,20 +200,42 @@ export async function getLatestProcessedBlock(): Promise<number> {
 /**
  * Syncs only new bet events since the last processed block
  */
-export async function syncNewBetEvents(): Promise<{ success: number; failed: number; skipped: number }> {
+export async function syncNewBetEvents(triggeredBy: 'cron' | 'manual' | 'admin' = 'manual'): Promise<{ success: number; failed: number; skipped: number }> {
+  const startTime = new Date();
+  let fromBlock: number | undefined;
+  let currentBlock: bigint | undefined;
+
   try {
     await connectDB();
-    
-    const fromBlock = await getLatestProcessedBlock();
-    const currentBlock = await publicClient.getBlockNumber();
-    
+
+    fromBlock = await getLatestProcessedBlock();
+    currentBlock = await publicClient.getBlockNumber();
+
     console.log(`🎯 Syncing new bet events from block ${fromBlock} to ${currentBlock}...`);
-    
+
     if (fromBlock >= currentBlock) {
       console.log('No new blocks to process');
+
+      // Log successful sync with no events
+      const endTime = new Date();
+      await SyncLog.create({
+        operation: 'bet-sync',
+        status: 'success',
+        startTime,
+        endTime,
+        duration: endTime.getTime() - startTime.getTime(),
+        result: { success: 0, failed: 0, skipped: 0 },
+        triggeredBy,
+        metadata: {
+          fromBlock,
+          toBlock: Number(currentBlock),
+          eventsProcessed: 0
+        }
+      });
+
       return { success: 0, failed: 0, skipped: 0 };
     }
-    
+
     // Fetch new BetPlaced events
     const betPlacedEvents = await publicClient.getLogs({
       address: contractAddress,
@@ -220,13 +243,13 @@ export async function syncNewBetEvents(): Promise<{ success: number; failed: num
       fromBlock: BigInt(fromBlock + 1),
       toBlock: 'latest'
     });
-    
+
     console.log(`Found ${betPlacedEvents.length} new BetPlaced events`);
-    
+
     let success = 0;
     let failed = 0;
     let skipped = 0;
-    
+
     for (const event of betPlacedEvents) {
       try {
         const { marketId, user, outcome } = event.args as {
@@ -234,23 +257,23 @@ export async function syncNewBetEvents(): Promise<{ success: number; failed: num
           user: string;
           outcome: boolean;
         };
-        
+
         const marketIdNum = Number(marketId);
         const userAddress = user.toLowerCase();
         const transactionHash = event.transactionHash.toLowerCase();
-        
+
         // Check if this bet event already exists
         const existingBet = await BetEvent.findOne({ transactionHash });
         if (existingBet) {
           skipped++;
           continue;
         }
-        
+
         // Get block details
         const block = await publicClient.getBlock({
           blockNumber: event.blockNumber
         });
-        
+
         // Create bet event record
         const betEvent = new BetEvent({
           marketId: marketIdNum,
@@ -261,21 +284,60 @@ export async function syncNewBetEvents(): Promise<{ success: number; failed: num
           blockNumber: Number(event.blockNumber),
           timestamp: new Date(Number(block.timestamp) * 1000)
         });
-        
+
         await betEvent.save();
         success++;
-        
+
       } catch (error) {
         console.error(`Failed to process new bet event ${event.transactionHash}:`, error);
         failed++;
       }
     }
-    
+
     console.log(`✅ New bet event sync completed: ${success} successful, ${failed} failed, ${skipped} skipped`);
+
+    // Log successful sync
+    const endTime = new Date();
+    const status = failed > 0 ? 'partial' : 'success';
+    await SyncLog.create({
+      operation: 'bet-sync',
+      status,
+      startTime,
+      endTime,
+      duration: endTime.getTime() - startTime.getTime(),
+      result: { success, failed, skipped },
+      triggeredBy,
+      metadata: {
+        fromBlock,
+        toBlock: Number(currentBlock),
+        eventsProcessed: betPlacedEvents.length
+      }
+    });
+
     return { success, failed, skipped };
-    
+
   } catch (error) {
     console.error('❌ Failed to sync new bet events:', error);
+
+    // Log failed sync
+    const endTime = new Date();
+    await SyncLog.create({
+      operation: 'bet-sync',
+      status: 'failure',
+      startTime,
+      endTime,
+      duration: endTime.getTime() - startTime.getTime(),
+      error: error instanceof Error ? error.message : 'Unknown error',
+      triggeredBy,
+      metadata: {
+        fromBlock,
+        toBlock: currentBlock ? Number(currentBlock) : undefined
+      }
+    }).catch(() => {
+      // Ignore logging errors to prevent infinite loops
+      console.error('Failed to log sync failure');
+    });
+
     return { success: 0, failed: 0, skipped: 0 };
   }
 }

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         result = await syncAllBetEvents();
         break;
       case 'new':
-        result = await syncNewBetEvents();
+        result = await syncNewBetEvents('admin');
         break;
       case 'validate':
         result = await validateBetEventIntegrity();
