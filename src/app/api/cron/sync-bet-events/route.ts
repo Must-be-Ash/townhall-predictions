@@ -1,10 +1,22 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { syncNewBetEvents } from '@/lib/services/betEventSync';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const startTime = Date.now();
 
   try {
+    // Verify Vercel cron secret or admin API key
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+    const adminApiKey = process.env.ADMIN_API_KEY;
+
+    const isValidCron = cronSecret && authHeader === `Bearer ${cronSecret}`;
+    const isValidAdmin = adminApiKey && authHeader === `Bearer ${adminApiKey}`;
+
+    if (!isValidCron && !isValidAdmin) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     console.log('🕐 [CRON] Starting automatic bet event sync...');
 
     // Run the sync operation
@@ -41,6 +53,6 @@ export async function GET() {
 }
 
 // Also support POST method for manual triggering
-export async function POST() {
-  return GET();
+export async function POST(request: NextRequest) {
+  return GET(request);
 }

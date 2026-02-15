@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import { SyncLog, ISyncLog } from '@/lib/models/SyncLog';
+import { requireAdminApiKey } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = requireAdminApiKey(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     await connectDB();
 
     const { searchParams } = new URL(request.url);

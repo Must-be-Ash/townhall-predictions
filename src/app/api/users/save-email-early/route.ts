@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import { extractUsernameFromEmail, User } from '@/lib/models/User';
+import { isAllowedEmail } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'email is required' },
         { status: 400 }
+      );
+    }
+
+    if (!isAllowedEmail(email)) {
+      return NextResponse.json(
+        { success: false, error: 'This application is restricted to invite only.' },
+        { status: 403 }
       );
     }
 

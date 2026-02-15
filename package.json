@@ -17,6 +17,7 @@
     "@coinbase/cdp-core": "^0.0.33",
     "@coinbase/cdp-hooks": "^0.0.33",
     "@coinbase/cdp-react": "^0.0.33",
+    "@coinbase/cdp-sdk": "^1.44.1",
     "@coinbase/coinbase-sdk": "^0.25.0",
     "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",

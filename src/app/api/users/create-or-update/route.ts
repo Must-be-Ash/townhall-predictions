@@ -1,15 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import { createOrUpdateUserOnLogin, getUserDisplayName } from '@/lib/models/User';
+import { requireAuth, isAllowedEmail } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    // Require valid CDP access token
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     const { email, evmAddress } = await request.json();
 
     if (!email || !evmAddress) {
       return NextResponse.json(
         { success: false, error: 'email and evmAddress are required' },
         { status: 400 }
+      );
+    }
+
+    // Server-side email domain check
+    if (!isAllowedEmail(email)) {
+      return NextResponse.json(
+        { success: false, error: 'This application is restricted to invite only.' },
+        { status: 403 }
       );
     }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from 'react';
-import { useVerifyEmailOTP, useVerifySmsOTP } from '@coinbase/cdp-hooks';
+import { useVerifyEmailOTP, useVerifySmsOTP, useGetAccessToken } from '@coinbase/cdp-hooks';
 
 export interface AutoFundingStatus {
   status: 'idle' | 'funding' | 'completed' | 'failed' | 'retrying';
@@ -57,27 +57,39 @@ export interface UseAutoFundingAuthReturn {
 export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
   const { verifyEmailOTP } = useVerifyEmailOTP();
   const { verifySmsOTP } = useVerifySmsOTP();
+  const { getAccessToken } = useGetAccessToken();
   const [fundingStatus, setFundingStatus] = useState<AutoFundingStatus>({ status: 'idle' });
   const [currentUser, setCurrentUser] = useState<{ address: string; id: string } | null>(null);
+
+  /** Build headers with CDP access token for authenticated API calls */
+  const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    try {
+      const token = await getAccessToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+    } catch {
+      console.warn('Could not get access token for API call');
+    }
+    return headers;
+  }, [getAccessToken]);
 
   const triggerAutoFunding = useCallback(async (userAddress: string, userId: string, attemptCount = 1) => {
     const maxRetries = 3;
     const isRetrying = attemptCount > 1;
-    
-    setFundingStatus({ 
-      status: isRetrying ? 'retrying' : 'funding', 
+
+    setFundingStatus({
+      status: isRetrying ? 'retrying' : 'funding',
       message: isRetrying ? `Retrying funding (attempt ${attemptCount}/${maxRetries})...` : 'Getting your play money...',
       attemptCount
     });
 
     try {
       console.log(`🚀 ${isRetrying ? 'Retrying' : 'Starting'} auto-funding for user: ${userAddress} (attempt ${attemptCount})`);
-      
+
+      const headers = await getAuthHeaders();
       const response = await fetch('/api/faucet/admin-fund', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           userAddress,
           userId,
@@ -112,7 +124,7 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
         // Update user record in database
         await fetch('/api/users/update-funding-status', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             userAddress,
             status: 'completed',
@@ -144,7 +156,7 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
         // Update user record with failed status
         await fetch('/api/users/update-funding-status', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             userAddress,
             status: 'failed',
@@ -155,7 +167,7 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
       }
     } catch (error) {
       console.error('❌ Auto-funding request failed:', error);
-      
+
       // Check if we should retry on network errors
       if (attemptCount < maxRetries) {
         console.log(`⏳ Network error, scheduling retry ${attemptCount + 1}/${maxRetries} in 5 seconds...`);
@@ -164,7 +176,7 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
         }, 5000);
         return;
       }
-      
+
       // Final failure
       setFundingStatus({
         status: 'failed',
@@ -176,9 +188,10 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
 
       // Update user record with failed status
       try {
+        const errorHeaders = await getAuthHeaders();
         await fetch('/api/users/update-funding-status', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: errorHeaders,
           body: JSON.stringify({
             userAddress,
             status: 'failed',
@@ -190,7 +203,7 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
         console.error('Failed to update user funding status:', dbError);
       }
     }
-  }, []);
+  }, [getAuthHeaders]);
 
   const verifyEmailOTPWithFunding = useCallback(async (params: { flowId: string; otp: string }) => {
     console.log('🔐 Verifying email OTP...');
@@ -207,19 +220,20 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
       // Create/update user record in database first
       try {
         console.log('👤 Processing user record for:', userAddress);
+        const headers = await getAuthHeaders();
         const userResponse = await fetch('/api/users/create-or-update', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             email: verificationResult.user?.authenticationMethods?.email?.email || '',
             evmAddress: userAddress,
             displayName: (verificationResult.user as { displayName?: string })?.displayName || ''
           })
         });
-        
+
         const userData = await userResponse.json();
         console.log('👤 User record processed:', userData);
-        
+
         // Only trigger funding for new users
         if (verificationResult.isNewUser) {
           // Check if user has already been funded
@@ -233,14 +247,14 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
       } catch (error) {
         console.warn('⚠️ Failed to process user record:', error);
       }
-      
+
       // Only trigger funding for new users
       if (verificationResult.isNewUser) {
         // Store user info for potential retries
         setCurrentUser({ address: userAddress, id: userId });
-        
+
         console.log(`🆕 New user detected! Triggering auto-funding for ${userAddress}`);
-        
+
         // Don't await this - let it run in background while user proceeds
         triggerAutoFunding(userAddress, userId);
       } else {
@@ -255,7 +269,7 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
     }
 
     return verificationResult;
-  }, [verifyEmailOTP, triggerAutoFunding]);
+  }, [verifyEmailOTP, triggerAutoFunding, getAuthHeaders]);
 
   const verifySmsOTPWithFunding = useCallback(async (params: { flowId: string; otp: string }) => {
     console.log('🔐 Verifying SMS OTP...');
@@ -272,19 +286,20 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
       // Create/update user record in database first
       try {
         console.log('👤 Processing user record for:', userAddress);
+        const smsHeaders = await getAuthHeaders();
         const userResponse = await fetch('/api/users/create-or-update', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: smsHeaders,
           body: JSON.stringify({
             email: verificationResult.user?.authenticationMethods?.sms?.phoneNumber || `sms_user_${userAddress.slice(-8)}@phone.local`, // Create pseudo-email for SMS users
             evmAddress: userAddress,
             displayName: (verificationResult.user as { displayName?: string })?.displayName || ''
           })
         });
-        
+
         const userData = await userResponse.json();
         console.log('👤 User record processed:', userData);
-        
+
         // Only trigger funding for new users
         if (verificationResult.isNewUser) {
           // Check if user has already been funded
@@ -298,14 +313,14 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
       } catch (error) {
         console.warn('⚠️ Failed to process user record:', error);
       }
-      
+
       // Only trigger funding for new users
       if (verificationResult.isNewUser) {
         // Store user info for potential retries
         setCurrentUser({ address: userAddress, id: userId });
-        
+
         console.log(`🆕 New user detected! Triggering auto-funding for ${userAddress}`);
-        
+
         // Don't await this - let it run in background while user proceeds
         triggerAutoFunding(userAddress, userId);
       } else {
@@ -320,7 +335,7 @@ export function useAutoFundingAuth(): UseAutoFundingAuthReturn {
     }
 
     return verificationResult;
-  }, [verifySmsOTP, triggerAutoFunding]);
+  }, [verifySmsOTP, triggerAutoFunding, getAuthHeaders]);
 
   const retryFunding = useCallback(() => {
     if (!currentUser) {

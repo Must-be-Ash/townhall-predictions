@@ -1,10 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAdminApiKey } from '@/lib/auth';
 
 // Circle faucet configuration
 const CIRCLE_API_URL = 'https://api.circle.com/v1/faucet/drips';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const authResult = requireAdminApiKey(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     console.log('🏦 Attempting Circle faucet refill for admin wallet...');
 
     // Use admin wallet address and Circle token from environment

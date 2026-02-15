@@ -1,8 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { tryCircleRefill } from '@/lib/circleRefillService';
+import { requireAdminApiKey } from '@/lib/auth';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const authResult = requireAdminApiKey(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     console.log('🔧 Manual Circle refill triggered by admin');
     
     // Trigger the refill (fire and forget, completely fail-safe)

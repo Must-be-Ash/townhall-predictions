@@ -4,6 +4,7 @@ import { baseSepolia } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { getContractAddress } from '@/lib/constants';
 import { tryCircleRefill } from '@/lib/circleRefillService';
+import { requireAuth } from '@/lib/auth';
 
 // USDC contract ABI (minimal for transfer)
 const USDC_ABI = [
@@ -32,6 +33,10 @@ const ETH_AMOUNT = parseUnits('0.0001', 18); // 0.0001 ETH for gas
 
 export async function POST(request: NextRequest) {
   try {
+    // Require valid CDP access token
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     const { userAddress, attemptCount = 1 } = await request.json();
 
     if (!userAddress) {

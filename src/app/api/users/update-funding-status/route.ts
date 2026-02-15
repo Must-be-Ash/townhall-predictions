@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import { User } from '@/lib/models/User';
+import { requireAuth } from '@/lib/auth';
 
 interface TransactionDetail {
   type: 'ETH' | 'USDC';
@@ -35,6 +36,10 @@ interface UpdateData {
 
 export async function POST(request: NextRequest) {
   try {
+    // Require valid CDP access token
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) return authResult;
+
     const { userAddress, status, fundingDetails, error } = await request.json();
 
     if (!userAddress || !status) {
